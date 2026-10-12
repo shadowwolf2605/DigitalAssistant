@@ -49,19 +49,35 @@ builder.Services.AddControllersWithViews(options =>
 builder.Services.Configure<Microsoft.Extensions.WebEncoders.WebEncoderOptions>(options =>
     options.TextEncoderSettings = new TextEncoderSettings(UnicodeRanges.All));
 
-// Файлът на базата е в папката на проекта, откъдето и да се стартира приложението
+// Базата данни: PostgreSQL, ако е зададена връзка (в интернет, напр. Neon), иначе файлът SQLite в App_Data
+var postgres = PostgresSettings.ConnectionString(builder.Configuration);
 var connection = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(builder.Configuration.GetConnectionString("Default"));
-if (!Path.IsPathRooted(connection.DataSource))
-    connection.DataSource = Path.Combine(builder.Environment.ContentRootPath, connection.DataSource);
-Directory.CreateDirectory(Path.GetDirectoryName(connection.DataSource)!);
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connection.ToString()));
+DatabaseKeyStore? databaseKeys = null;
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("DigitalAssistant");
+if (postgres != null)
+{
+    // Датите се пазят като местно време, както в SQLite
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(postgres));
+    // Няма постоянен диск, затова ключовете за шифроване се пазят в базата (шифровани с Keys:Secret)
+    databaseKeys = new DatabaseKeyStore(postgres, builder.Configuration["Keys:Secret"]);
+    builder.Services.AddSingleton<IKeyStore>(databaseKeys);
+    dataProtection.AddKeyManagementOptions(options => options.XmlRepository = databaseKeys);
+}
+else
+{
+    // Файлът на базата е в папката на проекта, откъдето и да се стартира приложението
+    if (!Path.IsPathRooted(connection.DataSource))
+        connection.DataSource = Path.Combine(builder.Environment.ContentRootPath, connection.DataSource);
+    Directory.CreateDirectory(Path.GetDirectoryName(connection.DataSource)!);
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connection.ToString()));
 
-// Ключовете за шифроване (бисквитки за вход, ЕГН) се пазят в App_Data/Keys
-var dataProtection = builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(appData, "Keys")))
-    .SetApplicationName("DigitalAssistant");
-// На Windows ключът, с който се шифрова ЕГН, се пази защитен с профила на Windows
-if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi();
+    // Ключовете за шифроване (бисквитки за вход, ЕГН) се пазят в App_Data/Keys
+    builder.Services.AddSingleton<IKeyStore>(new FileKeyStore(Path.Combine(appData, "Keys")));
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(appData, "Keys")));
+    // На Windows ключът, с който се шифрова ЕГН, се пази защитен с профила на Windows
+    if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi();
+}
 
 // Страниците под /Admin ползват входа на администраторите, а сайтът за гражданите – техния вход.
 // Така на всяка страница „текущият потребител“ е правилният и формулярите (напр. „Изход“) работят навсякъде.
@@ -140,17 +156,29 @@ builder.Services.AddSingleton<PersonalDataProtector>();
 builder.Services.AddSingleton<SiteUrls>();
 builder.Services.AddScoped<Notifications>();
 builder.Services.AddHostedService<BackupService>();
-builder.Services.AddHostedService<ScheduledReplySender>();
+builder.Services.AddSingleton<ScheduledReplySender>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ScheduledReplySender>());
 
 var app = builder.Build();
 
 // Създава базата данни и примерните данни при първо стартиране.
 // Ако базата е от по-стара версия на системата, тя се премества в App_Data/Backups и се създава нова.
-DatabaseVersion.Check(connection.DataSource, Path.Combine(appData, "Backups"), app.Logger);
+if (databaseKeys == null)
+    DatabaseVersion.Check(connection.DataSource, Path.Combine(appData, "Backups"), app.Logger);
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (db.Database.EnsureCreated())
+    var created = db.Database.EnsureCreated();
+    if (databaseKeys != null)
+    {
+        databaseKeys.EnsureTable();
+        if (!databaseKeys.HasSecret)
+            app.Logger.LogWarning("Липсва Keys:Secret – ключовете за шифроване се пазят в базата без допълнителна защита.");
+        if (created) databaseKeys.SetVersion(AppDbContext.SchemaVersion);
+        else if (databaseKeys.GetVersion() is long version && version != AppDbContext.SchemaVersion)
+            app.Logger.LogError("Базата в PostgreSQL е от версия {Old}, а системата е версия {New}. Обновяване на PostgreSQL база не се поддържа.", version, AppDbContext.SchemaVersion);
+    }
+    else if (created)
         DatabaseVersion.Set(db);
     await SeedData.InitializeAsync(db, app.Environment.ContentRootPath, scope.ServiceProvider.GetRequiredService<PersonalDataProtector>(), adminSite.InitialPassword);
 }
@@ -171,6 +199,9 @@ app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Кратка проверка дали сайтът работи (за Render и UptimeRobot). Не отваря базата, за да може тя да „спи“.
+app.MapGet("/health", () => Results.Text("OK"));
 
 app.MapControllerRoute(
     name: "admin",

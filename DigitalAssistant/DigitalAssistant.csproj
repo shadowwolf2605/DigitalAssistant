@@ -13,6 +13,7 @@
   <ItemGroup>
     <PackageReference Include="Anthropic" Version="12.54.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="NPOI" Version="2.7.2" />
     <PackageReference Include="QuestPDF" Version="2024.12.3" />
   </ItemGroup>

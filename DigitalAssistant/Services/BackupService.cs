@@ -36,6 +36,11 @@ public class BackupService : BackgroundService
 
     private async Task BackupIfNeededAsync()
     {
+        using (var check = _services.CreateScope())
+        {
+            // PostgreSQL (напр. Neon) прави резервните копия сам
+            if (!check.ServiceProvider.GetRequiredService<AppDbContext>().Database.IsSqlite()) return;
+        }
         Directory.CreateDirectory(_folder);
         var file = Path.Combine(_folder, $"digital-assistant-{DateTime.Today:yyyy-MM-dd}.db");
         if (File.Exists(file)) return;

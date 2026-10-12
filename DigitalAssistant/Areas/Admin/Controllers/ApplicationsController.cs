@@ -14,12 +14,14 @@ public class ApplicationsController : AdminController
     private readonly AppDbContext _db;
     private readonly PersonalDataProtector _protector;
     private readonly Notifications _notifications;
+    private readonly ScheduledReplySender _sender;
 
-    public ApplicationsController(AppDbContext db, PersonalDataProtector protector, Notifications notifications)
+    public ApplicationsController(AppDbContext db, PersonalDataProtector protector, Notifications notifications, ScheduledReplySender sender)
     {
         _db = db;
         _protector = protector;
         _notifications = notifications;
+        _sender = sender;
     }
 
     public async Task<IActionResult> Index(ApplicationStatus? status, string? q, bool messages = false, bool overdue = false)
@@ -201,6 +203,7 @@ public class ApplicationsController : AdminController
                 (comment.Length > 0 ? $". Съобщение: „{comment}“" : "") +
                 (newFiles.Count > 0 ? $". Файлове: {string.Join(", ", newFiles.Select(f => f.FileName))}" : ""));
             await _db.SaveChangesAsync();
+            _sender.Wake();
             Success($"Отговорът е насрочен за {sendAt:dd.MM.yyyy} в {sendAt:HH:mm} ч. Дотогава гражданинът не го вижда и можете да го отмените." + filesText);
             TempData["ReplySaved"] = true;
             return RedirectToAction(nameof(Details), new { id = app.Id });

@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DigitalAssistant.Services;
 
-// Изпраща насрочените отговори на служителите, когато дойдат денят и часът им. Проверява на всеки 30 секунди.
+// Изпраща насрочените отговори на служителите, когато дойдат денят и часът им. Чака до най-близкия насрочен час
+// (но поне веднъж на час проверява отново), а при ново или отменено насрочване се събужда веднага.
+// Така базата не се отваря без нужда и безплатната база в интернет може да „заспива“.
 // Ако системата е била спряна в този час, отговорът се изпраща веднага след стартирането ѝ.
 public class ScheduledReplySender : BackgroundService
 {
@@ -17,23 +19,35 @@ public class ScheduledReplySender : BackgroundService
         _logger = logger;
     }
 
+    private readonly SemaphoreSlim _wake = new(0);
+
+    // Вика се, когато служител насрочи или отмени отговор
+    public void Wake() => _wake.Release();
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            var wait = TimeSpan.FromHours(1);
             try
             {
-                await SendDueAsync(stoppingToken);
+                var next = await SendDueAsync(stoppingToken);
+                if (next != null && next.Value - DateTime.Now < wait)
+                    wait = next.Value - DateTime.Now;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Насрочените отговори не бяха изпратени.");
+                wait = TimeSpan.FromMinutes(1);
             }
-            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            if (wait < TimeSpan.FromSeconds(1)) wait = TimeSpan.FromSeconds(1);
+            await _wake.WaitAsync(wait, stoppingToken);
+            while (_wake.CurrentCount > 0) _wake.Wait(0);
         }
     }
 
-    private async Task SendDueAsync(CancellationToken token)
+    // Изпраща дошлите отговори и връща часа на следващия насрочен
+    private async Task<DateTime?> SendDueAsync(CancellationToken token)
     {
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -54,6 +68,7 @@ public class ScheduledReplySender : BackgroundService
                 _logger.LogInformation("Насроченият отговор {Id} е отменен преди изпращането.", id);
             }
         }
+        return await db.ScheduledReplies.OrderBy(r => r.SendAt).Select(r => (DateTime?)r.SendAt).FirstOrDefaultAsync(token);
     }
 
     private async Task SendOneAsync(AppDbContext db, Notifications notifications, int id, CancellationToken token)

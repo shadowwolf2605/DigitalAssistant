@@ -4,11 +4,18 @@ services:
     name: digital-assistant
     runtime: docker
     plan: free
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       # Render стои пред сайта като посредник. Така сайтът вижда истинския адрес на посетителя.
       - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
         value: "true"
+      # Връзката към базата PostgreSQL (например безплатната Neon), за да не се губят данните. Вижте README.
+      - key: DATABASE_URL
+        sync: false
+      # Парола, с която се шифроват ключовете в базата. Създава се случайно – не я сменяйте,
+      # иначе записаните ЕГН-та не могат да се прочетат.
+      - key: Keys__Secret
+        generateValue: true
       # Началната парола на admin се създава случайно. Вижда се в Render → Environment.
       - key: AdminSite__InitialPassword
         generateValue: true

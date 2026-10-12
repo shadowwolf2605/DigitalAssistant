@@ -49,16 +49,13 @@ public class PersonalDataProtector
     private readonly IDataProtector _protector;
     private readonly byte[] _hashKey;
 
-    public PersonalDataProtector(IDataProtectionProvider provider, IWebHostEnvironment env)
+    public PersonalDataProtector(IDataProtectionProvider provider, IKeyStore keys)
     {
         _protector = provider.CreateProtector("DigitalAssistant.Egn");
 
-        // Отделен таен ключ за отпечатъка (хеша) на ЕГН. Създава се при първото стартиране.
-        var keyFile = Path.Combine(env.ContentRootPath, "App_Data", "Keys", "egn-hash.key");
-        Directory.CreateDirectory(Path.GetDirectoryName(keyFile)!);
-        if (!File.Exists(keyFile))
-            File.WriteAllBytes(keyFile, RandomNumberGenerator.GetBytes(32));
-        _hashKey = File.ReadAllBytes(keyFile);
+        // Отделен таен ключ за отпечатъка (хеша) на ЕГН. Създава се при първото стартиране
+        // (файлът App_Data/Keys/egn-hash.key или ред в базата, ако тя е PostgreSQL).
+        _hashKey = keys.GetOrCreate("egn-hash");
     }
 
     public string Protect(string egn) => _protector.Protect(Egn.Clean(egn));
