@@ -1,0 +1,20 @@
+@{
+    bool ok = ViewBag.Ok;
+    ViewData["Title"] = ok ? "Имейлът е потвърден" : "Връзката не е валидна";
+    ViewData["Help"] = "registracia";
+}
+<section class="hero page-hero text-center" style="min-height: 60vh; display: flex; align-items: center;">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span>
+    <div class="container">
+        <div class="anim" style="--i:0; font-size: 3.5rem"><i class="bi @(ok ? "bi-patch-check-fill text-success" : "bi-x-octagon text-danger")" aria-hidden="true"></i></div>
+        <h1 class="anim" style="--i:1">@ViewData["Title"]</h1>
+        <p class="lead mx-auto anim" style="--i:2">
+            @(ok ? "Благодарим ви! Вече можете да подавате заявления онлайн."
+                 : "Връзката е използвана или е изтекла. Влезте в профила си и натиснете „Изпрати писмото отново“.")
+        </p>
+        <div class="d-flex flex-wrap justify-content-center gap-2 mt-4 anim" style="--i:3">
+            <a class="btn btn-primary btn-lg" asp-controller="Applications" asp-action="Index"><i class="bi bi-folder2-open me-1" aria-hidden="true"></i> Моите заявления</a>
+            <a class="btn btn-light-glass btn-lg" asp-controller="Services" asp-action="Index">Към услугите</a>
+        </div>
+    </div>
+</section>

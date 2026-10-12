@@ -1,0 +1,126 @@
+@using DigitalAssistant.Models
+@model DigitalAssistant.Models.Service
+@{
+    ViewData["Title"] = Model.Name;
+    ViewData["Help"] = "usluga";
+    string Days(int d) => DigitalAssistant.Services.WorkingDays.Text(d);
+    var documents = DigitalAssistant.Services.ServiceText.Documents(Model.RequiredDocuments);
+    var official = DigitalAssistant.Services.ServiceText.Documents(Model.OfficialDocuments);
+    var steps = DigitalAssistant.Services.ServiceText.Steps(Model.Steps);
+}
+
+<section class="hero page-hero">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span>
+    <div class="container">
+        <nav aria-label="breadcrumb" class="anim" style="--i:0">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Index">Услуги</a></li>
+                <li class="breadcrumb-item"><a asp-action="Index" asp-route-categoryId="@Model.CategoryId">@Model.Category!.Name</a></li>
+                <li class="breadcrumb-item active" aria-current="page">@Model.Name</li>
+            </ol>
+        </nav>
+        <a class="detail-chip anim" style="--i:1" asp-action="Index" asp-route-categoryId="@Model.CategoryId">
+            <i class="bi @CategoryStyle.Icon(Model.Category!.Name)" aria-hidden="true"></i>@Model.Category!.Name
+        </a>
+        <h1 class="mt-3 anim" style="--i:2">@Model.Name</h1>
+        <p class="lead anim mb-0" style="--i:3"><i class="bi bi-bank me-1" aria-hidden="true"></i>@Model.Institution!.Name</p>
+    </div>
+</section>
+
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            @if (!string.IsNullOrWhiteSpace(Model.Description))
+            {
+                <div class="info-card reveal">
+                    <h2><i class="bi bi-info-lg" aria-hidden="true"></i>За услугата</h2>
+                    <p class="mb-0 fs-5">@Model.Description</p>
+                </div>
+            }
+            <div class="info-card reveal">
+                <h2><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Необходими документи</h2>
+                <ul class="check-list">
+                    @foreach (var d in documents) { <li>@d</li> }
+                </ul>
+                @if (official.Count > 0)
+                {
+                    <div class="official-box mt-3">
+                        <div class="fw-semibold"><i class="bi bi-arrow-left-right me-1" aria-hidden="true"></i> Не е нужно да ги носите</div>
+                        <div class="small text-muted mb-2">Служителят ги взима служебно от другата институция през системата.</div>
+                        <ul class="mb-0">@foreach (var d in official) { <li>@d</li> }</ul>
+                    </div>
+                }
+                @{ var situations = string.IsNullOrWhiteSpace(Model.Question) ? new List<DigitalAssistant.Services.ServiceText.Situation>() : DigitalAssistant.Services.ServiceText.Situations(Model.QuestionOptions); }
+                @if (situations.Count > 1)
+                {
+                    <div class="situations mt-3">
+                        <div class="fw-semibold mb-1">@Model.Question</div>
+                        <ul class="mb-0">
+                            @foreach (var x in situations)
+                            {
+                                <li><strong>@x.Answer</strong>@(x.Documents.Count > 0 ? " – още: " + string.Join(", ", x.Documents) : "")@(x.Note.Length > 0 ? ". " + x.Note : "")</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+            @if (steps.Count > 0)
+            {
+                <div class="info-card reveal">
+                    <h2><i class="bi bi-signpost-split" aria-hidden="true"></i>Какво трябва да направите</h2>
+                    <ol class="timeline">
+                        @foreach (var st in steps) { <li>@st</li> }
+                    </ol>
+                </div>
+            }
+            <p class="text-muted small">№ на услугата: @Model.Id · Последна промяна: @Model.UpdatedAt.ToString("dd.MM.yyyy")</p>
+        </div>
+        <div class="col-lg-4">
+            <aside class="aside-card anim-pop">
+                <div class="text-muted fw-semibold">Такса</div>
+                <div class="price my-1">@(Model.Fee == 0 ? "безплатно" : Model.Fee.ToString("0.00") + " €")</div>
+                @if (Model.ExpressFee != null)
+                {
+                    <div class="small text-muted mb-2"><i class="bi bi-lightning-charge" aria-hidden="true"></i> бърза услуга: @Model.ExpressFee.Value.ToString("0.00") €</div>
+                }
+                <div class="fact">
+                    <i class="bi bi-clock" aria-hidden="true"></i>
+                    <div><div class="label">Срок</div>
+                        @Days(Model.DeadlineDays)
+                        @if (Model.ExpressDeadlineDays != null) { <div class="small text-muted">бърза услуга: @Days(Model.ExpressDeadlineDays.Value)</div> }
+                    </div>
+                </div>
+                <div class="fact">
+                    <i class="bi bi-geo-alt" aria-hidden="true"></i>
+                    <div><div class="label">Място на подаване</div>
+                        @Model.Address
+                        @if (!string.IsNullOrWhiteSpace(Model.WorkingHours)) { <div class="small text-muted">Работно време: @Model.WorkingHours</div> }
+                        @if (!string.IsNullOrWhiteSpace(Model.Phone)) { <div class="small text-muted">Телефон: @Model.Phone</div> }
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.ResultDelivery))
+                {
+                    <div class="fact">
+                        <i class="bi bi-envelope-paper" aria-hidden="true"></i>
+                        <div><div class="label">Получаване на резултата</div>@Model.ResultDelivery</div>
+                    </div>
+                }
+                <div class="d-grid gap-2 mt-2">
+                    @if (Model.AllowOnline)
+                    {
+                        <a class="btn btn-primary btn-lg" asp-controller="Applications" asp-action="Create" asp-route-serviceId="@Model.Id"><i class="bi bi-send me-1" aria-hidden="true"></i> Подай заявление онлайн</a>
+                    }
+                    else
+                    {
+                        <div class="small text-muted"><i class="bi bi-person-badge me-1" aria-hidden="true"></i>Тази услуга се заявява лично на гишето.</div>
+                    }
+                    @if (Model.TemplateFileName != null)
+                    {
+                        <a class="btn btn-outline-primary" asp-action="Template" asp-route-id="@Model.Id"><i class="bi bi-download me-1" aria-hidden="true"></i> Изтегли образец на заявлението</a>
+                    }
+                    <a class="btn btn-outline-primary" asp-controller="Assistant" asp-action="Index" asp-route-s="@Model.Id"><i class="bi bi-signpost-2 me-1" aria-hidden="true"></i> Упътване стъпка по стъпка</a>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>

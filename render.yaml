@@ -1,0 +1,29 @@
+# Настройки за Render (https://render.com): New → Blueprint → това хранилище
+services:
+  - type: web
+    name: digital-assistant
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      # Render стои пред сайта като посредник. Така сайтът вижда истинския адрес на посетителя.
+      - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+        value: "true"
+      # Началната парола на admin се създава случайно. Вижда се в Render → Environment.
+      - key: AdminSite__InitialPassword
+        generateValue: true
+      # Откъде може да се отваря администрацията, например вашият адрес 85.118.70.12/32 (вижте README)
+      - key: AdminSite__AllowedNetworks__0
+        sync: false
+      # Ключ за изкуствения интелект (по желание)
+      - key: Ai__ApiKey
+        sync: false
+      # Пощенски сървър (по желание), например Gmail: smtp.gmail.com и парола за приложения
+      - key: Email__SmtpHost
+        sync: false
+      - key: Email__Username
+        sync: false
+      - key: Email__Password
+        sync: false
+      - key: Email__From
+        sync: false

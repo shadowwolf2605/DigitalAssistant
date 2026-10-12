@@ -1,0 +1,225 @@
+@using DigitalAssistant.Models
+@using DigitalAssistant.Services
+@model GuideViewModel
+@{
+    string Link(Dictionary<string, string> route) =>
+        Url.Action("Index", "Assistant", new RouteValueDictionary(route.ToDictionary(k => k.Key, k => (object?)k.Value)))!;
+    var s = Model.Service!;
+    var st = Model.State;
+    var have = st.HaveSet;
+    var docs = Model.Documents;
+    var official = ServiceText.Documents(s.OfficialDocuments);
+    var missing = Enumerable.Range(0, docs.Count).Where(i => !have.Contains(i)).ToList();
+    var express = st.IsExpress;
+    var fee = express ? (s.ExpressFee ?? s.Fee) : s.Fee;
+    var days = express ? (s.ExpressDeadlineDays ?? s.DeadlineDays) : s.DeadlineDays;
+    var ready = WorkingDays.AddWorkingDays(DateTime.Today, days);
+    var online = st.IsOnline;
+    var hasPlace = !string.IsNullOrWhiteSpace(s.PlaceSearch);
+    var city = Model.CityName;
+    var steps = ServiceText.Steps(s.Steps);
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    var showPhone = !string.IsNullOrWhiteSpace(s.Phone) && (city == null || string.Equals(city, GuideCities.HomeCity, StringComparison.OrdinalIgnoreCase));
+    int n = 0;
+}
+<div class="guide-result">
+    <div class="guide-head">
+        <div class="guide-head-text">
+            <div class="kicker">Вашето упътване</div>
+            <h2 class="guide-title" tabindex="-1">@s.Name</h2>
+            <div class="text-muted"><i class="bi bi-bank me-1" aria-hidden="true"></i>@s.Institution?.Name</div>
+        </div>
+        <div class="guide-answers" aria-label="Вашите отговори">
+            @if (Model.Situation != null)
+            {
+                <a class="chip" href="@Link(st.Route("o", "d", "h"))" data-guide title="Промени"><i class="bi bi-signpost-split" aria-hidden="true"></i>@Model.Situation.Answer<i class="bi bi-pencil small ms-1" aria-hidden="true"></i></a>
+            }
+            @if (s.AllowOnline)
+            {
+                <a class="chip" href="@Link(st.Route("how"))" data-guide title="Промени"><i class="bi @(online ? "bi-laptop" : "bi-person-walking")" aria-hidden="true"></i>@(online ? "Онлайн" : "Лично на гишето")<i class="bi bi-pencil small ms-1" aria-hidden="true"></i></a>
+            }
+            else
+            {
+                <span class="chip chip-static"><i class="bi @(hasPlace ? "bi-person-walking" : "bi-box-arrow-up-right")" aria-hidden="true"></i>@(hasPlace ? "Само лично на гишето" : "Заявява се другаде")</span>
+            }
+            @if (s.ExpressDeadlineDays != null || s.ExpressFee != null)
+            {
+                <a class="chip" href="@Link(st.Route("speed"))" data-guide title="Промени"><i class="bi @(express ? "bi-lightning-charge" : "bi-hourglass-split")" aria-hidden="true"></i>@(express ? "Бърза услуга" : "Обикновена услуга")<i class="bi bi-pencil small ms-1" aria-hidden="true"></i></a>
+            }
+            @if (docs.Count > 0)
+            {
+                <a class="chip" href="@Link(st.Route("d"))" data-guide title="Промени"><i class="bi bi-ui-checks" aria-hidden="true"></i>Документите, които имам<i class="bi bi-pencil small ms-1" aria-hidden="true"></i></a>
+            }
+            @if (!online && hasPlace)
+            {
+                <a class="chip" href="@Link(st.Route("loc"))" data-guide title="Промени"><i class="bi bi-geo-alt" aria-hidden="true"></i>@(st.City ?? ("близо до " + city))<i class="bi bi-pencil small ms-1" aria-hidden="true"></i></a>
+            }
+        </div>
+    </div>
+
+    <div class="guide-facts">
+        <div><span class="label">Такса</span><span class="value">@(fee == 0 ? "безплатно" : fee.ToString("0.00") + " €")</span></div>
+        <div><span class="label">Срок</span><span class="value">@WorkingDays.Text(days)</span></div>
+        <div><span class="label">Готово около</span><span class="value">@ready.ToString("dd.MM.yyyy")</span></div>
+        <div><span class="label">Липсващи документи</span><span class="value @(missing.Count == 0 ? "text-success" : "text-warning-emphasis")">@(missing.Count == 0 ? "няма" : missing.Count.ToString())</span></div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(s.Description))
+    {
+        <p class="guide-desc">@s.Description</p>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.Situation?.Note))
+    {
+        <div class="guide-note"><i class="bi bi-info-circle-fill" aria-hidden="true"></i><span>@Model.Situation.Note</span></div>
+    }
+
+    <ol class="route">
+        @* 1. Документи *@
+        <li class="route-step">
+            <span class="route-num">@(++n)</span>
+            <div class="route-body">
+                <h3>Подгответе документите</h3>
+                @if (docs.Count == 0 && official.Count == 0)
+                {
+                    <p>За тази услуга не са нужни документи.</p>
+                }
+                else
+                {
+                    @if (missing.Count == 0) { <p class="text-success fw-semibold"><i class="bi bi-hand-thumbs-up me-1" aria-hidden="true"></i>Имате всичко нужно.</p> }
+                    else { <p>Набавете първо тези, които ви липсват, за да не ходите два пъти.</p> }
+                    <ul class="doc-status">
+                        @for (int i = 0; i < docs.Count; i++)
+                        {
+                            var ok = have.Contains(i);
+                            <li class="@(ok ? "ok" : "missing")">
+                                <i class="bi @(ok ? "bi-check-circle-fill" : "bi-exclamation-circle-fill")" aria-hidden="true"></i>
+                                <span>@docs[i] <small>@(ok ? "имате го" : "липсва")</small></span>
+                            </li>
+                        }
+                        @foreach (var d in official)
+                        {
+                            <li class="official">
+                                <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                                <span>@d <small>не го носите – взима се служебно</small></span>
+                            </li>
+                        }
+                    </ul>
+                }
+                @if (official.Count > 0)
+                {
+                    <p class="small text-muted mt-2 mb-0"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Институциите са свързани в системата. Служителят ще поиска тези документи служебно, затова не е нужно да ходите до другата институция.</p>
+                }
+                @if (s.TemplateFileName != null)
+                {
+                    <p class="mt-2 mb-1">Изтеглете образеца на заявлението и го попълнете у дома. Така ще чакате по-малко.</p>
+                    <a class="btn btn-outline-primary btn-sm no-print" asp-controller="Services" asp-action="Template" asp-route-id="@s.Id"><i class="bi bi-download me-1" aria-hidden="true"></i> Изтегли образеца</a>
+                }
+                @if (online)
+                {
+                    <p class="mt-2 mb-0 small text-muted"><i class="bi bi-camera me-1" aria-hidden="true"></i>Снимайте или сканирайте документите. Ще ги прикачите към заявлението (до 5 файла, всеки до 5 MB).</p>
+                }
+            </div>
+        </li>
+
+        @if (online)
+        {
+            @* 2. Онлайн заявление *@
+            <li class="route-step">
+                <span class="route-num">@(++n)</span>
+                <div class="route-body">
+                    <h3>Подайте заявлението онлайн</h3>
+                    <ol class="timeline mb-3">
+                        @if (!signedIn) { <li>Влезте в профила си. Ако нямате, регистрирайте се с ЕГН, имейл и парола и потвърдете имейла си.</li> }
+                        <li>Натиснете „Подай заявление“ и напишете накратко какво искате.</li>
+                        <li>Прикачете документите от точка 1.</li>
+                        @if (!string.IsNullOrWhiteSpace(s.ResultDelivery)) { <li>Изберете как да получите резултата: @s.ResultDelivery.</li> }
+                        <li>Ще получите номер на заявлението. При всяка промяна ще ви пишем на имейла, а състоянието се вижда в „Моите заявления“.</li>
+                    </ol>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-primary" asp-controller="Applications" asp-action="Create" asp-route-serviceId="@s.Id" asp-route-speed="@(express ? "express" : null)"><i class="bi bi-send me-1" aria-hidden="true"></i> Подай заявление</a>
+                        @if (!signedIn) { <a class="btn btn-light-glass" asp-controller="Account" asp-action="Register"><i class="bi bi-person-plus me-1" aria-hidden="true"></i> Регистрация</a> }
+                    </div>
+                </div>
+            </li>
+        }
+        else
+        {
+            @* 2. Къде и как да стигне *@
+            <li class="route-step">
+                <span class="route-num">@(++n)</span>
+                <div class="route-body">
+                    <h3>@(hasPlace ? "Отидете на място" : "Къде се заявява")</h3>
+                    <div class="place-card">
+                        <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+                        <div>
+                            <div class="fw-semibold">@s.Address</div>
+                            @if (hasPlace && city != null)
+                            {
+                                <div>@(st.City != null ? GuideCities.In(st.City) : "най-близо до вас (около " + city + ")")</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(s.WorkingHours)) { <div class="small text-muted mt-1"><i class="bi bi-clock me-1" aria-hidden="true"></i>@(hasPlace ? "Обикновено работи: " + s.WorkingHours + ". Проверете в картата, преди да тръгнете." : "Работи: " + s.WorkingHours + ".")</div> }
+                            @if (showPhone) { <div class="small text-muted"><i class="bi bi-telephone me-1" aria-hidden="true"></i>Телефон: @s.Phone</div> }
+                            else if (hasPlace && !string.IsNullOrWhiteSpace(s.Phone)) { <div class="small text-muted"><i class="bi bi-telephone me-1" aria-hidden="true"></i>Телефона на мястото ще видите в картата.</div> }
+                        </div>
+                    </div>
+                    @if (hasPlace)
+                    {
+                        <p class="mt-3 mb-2 no-print">Как да стигнете:</p>
+                        <div class="route-btns">
+                            <a class="btn btn-primary" href="@GuideCities.MapSearch(s.PlaceSearch, st.City ?? city, st.Lat, st.Lng)" target="_blank" rel="noopener"><i class="bi bi-map me-1" aria-hidden="true"></i> Покажи на картата</a>
+                            <a class="btn btn-light-glass" href="@GuideCities.Route(s.PlaceSearch, st.City ?? city, st.Lat, st.Lng, "walking")" target="_blank" rel="noopener"><i class="bi bi-person-walking me-1" aria-hidden="true"></i> Пеша</a>
+                            <a class="btn btn-light-glass" href="@GuideCities.Route(s.PlaceSearch, st.City ?? city, st.Lat, st.Lng, "transit")" target="_blank" rel="noopener"><i class="bi bi-bus-front me-1" aria-hidden="true"></i> С градски транспорт</a>
+                            <a class="btn btn-light-glass" href="@GuideCities.Route(s.PlaceSearch, st.City ?? city, st.Lat, st.Lng, "driving")" target="_blank" rel="noopener"><i class="bi bi-car-front me-1" aria-hidden="true"></i> С кола</a>
+                        </div>
+                        <p class="small text-muted mt-2 mb-0 no-print">Картата се отваря в нов прозорец@(st.Lat != null ? " и показва най-близките места около вас" : "").</p>
+                    }
+                </div>
+            </li>
+        }
+
+        @if (steps.Count > 0)
+        {
+            <li class="route-step">
+                <span class="route-num">@(++n)</span>
+                <div class="route-body">
+                    <h3>@(online ? "Как протича услугата" : hasPlace ? "Какво да направите на място" : "Какво да направите")</h3>
+                    @if (online) { <p class="small text-muted">Първата стъпка правите от вкъщи с онлайн заявлението.</p> }
+                    <ol class="timeline">
+                        @foreach (var step in steps) { <li>@step</li> }
+                    </ol>
+                </div>
+            </li>
+        }
+
+        <li class="route-step">
+            <span class="route-num">@(++n)</span>
+            <div class="route-body">
+                <h3>Платете таксата</h3>
+                @if (fee == 0)
+                {
+                    <p class="mb-0">Услугата е безплатна.</p>
+                }
+                else
+                {
+                    <p class="mb-0">Таксата е <strong>@fee.ToString("0.00") €</strong>@(express ? " (бърза услуга)" : "").
+                        @(online ? "През сайта не се плаща. Служителят ще ви напише в заявлението как да платите." : hasPlace ? "Платете я на място, когато подавате документите." : "Платете я, когато заявявате услугата.")</p>
+                }
+            </div>
+        </li>
+
+        <li class="route-step">
+            <span class="route-num">@(++n)</span>
+            <div class="route-body">
+                <h3>Вземете готовия документ</h3>
+                <p class="mb-1">Срокът е <strong>@WorkingDays.Text(days)</strong>, така че ще е готово около <strong>@ready.ToString("dd.MM.yyyy")</strong> (без събота, неделя и празници).</p>
+                @if (!string.IsNullOrWhiteSpace(s.ResultDelivery)) { <p class="mb-0">Как се получава: @s.ResultDelivery.</p> }
+            </div>
+        </li>
+    </ol>
+
+    <div class="guide-actions">
+        <button type="button" class="btn btn-primary" id="printGuide"><i class="bi bi-printer me-1" aria-hidden="true"></i> Отпечатай или запази като PDF</button>
+        <a class="btn btn-light-glass" asp-controller="Services" asp-action="Details" asp-route-id="@s.Id"><i class="bi bi-info-circle me-1" aria-hidden="true"></i> Цялата информация за услугата</a>
+        <a class="btn btn-light-glass" asp-controller="Assistant" asp-action="Index" data-guide><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i> Започни отначало</a>
+    </div>
+</div>

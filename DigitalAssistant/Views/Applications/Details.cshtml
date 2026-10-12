@@ -1,0 +1,197 @@
+@using DigitalAssistant.Services
+@model Application
+@{
+    ViewData["Title"] = "Заявление № " + Model.Number;
+    ViewData["Help"] = "zayavlenie";
+    DateTime? seenBefore = ViewBag.SeenBefore;
+    DateTime? expected = ViewBag.Expected;
+    CitizenMessageModel message = ViewBag.Message;
+    var events = Model.Events.OrderByDescending(e => e.At).ToList();
+    // Последното съобщение от служителя (с текст или с файлове) се показва най-горе
+    List<ApplicationFile> FilesOf(ApplicationEvent e) => Model.Files.Where(f => f.EventId == e.Id).ToList();
+    var staffMessage = events.FirstOrDefault(e => !e.ByCitizen && (!string.IsNullOrWhiteSpace(e.Comment) || FilesOf(e).Count > 0));
+    var staffFiles = staffMessage == null ? new List<ApplicationFile>() : FilesOf(staffMessage);
+    bool IsNew(ApplicationEvent e) => !e.ByCitizen && (seenBefore == null || e.At > seenBefore);
+    bool open = Model.Status is not (ApplicationStatus.Completed or ApplicationStatus.Rejected);
+}
+@{
+    // Връзки към файловете, прикачени към едно съобщение
+    async Task FileLinks(List<ApplicationFile> files)
+    {
+        if (files.Count == 0) return;
+        <ul class="msg-files">
+            @foreach (var f in files)
+            {
+                <li><a asp-action="File" asp-route-id="@Model.Id" asp-route-fileId="@f.Id"><i class="bi @ApplicationFileRules.Icon(f.FileName)" aria-hidden="true"></i>@f.FileName <span class="size">@ApplicationFileRules.Size(f.Size)</span></a></li>
+            }
+        </ul>
+    }
+}
+
+
+<section class="hero page-hero">
+    <span class="blob blob-1"></span><span class="blob blob-3"></span>
+    <div class="container">
+        <nav aria-label="breadcrumb" class="anim" style="--i:0">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-action="Index">Моите заявления</a></li>
+                <li class="breadcrumb-item active" aria-current="page">№ @Model.Number</li>
+            </ol>
+        </nav>
+        <h1 class="anim" style="--i:1">Заявление № @Model.Number</h1>
+        <p class="lead anim mb-0" style="--i:2">@Model.Service!.Name · @Model.Service.Institution!.Name</p>
+    </div>
+</section>
+
+<div class="container py-4">
+    @if (TempData["Success"] is string ok) { <div class="alert alert-success anim"><i class="bi bi-check-circle me-1" aria-hidden="true"></i> @ok</div> }
+    @if (TempData["Error"] is string err) { <div class="alert alert-danger anim"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i> @err</div> }
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            @if (Model.Status == ApplicationStatus.NeedsDocuments)
+            {
+                <div class="notice-docs anim" id="staffMessage">
+                    <h2 class="h5"><i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i> Служителят иска още документи
+                        @if (staffMessage != null && IsNew(staffMessage)) { <span class="badge text-bg-danger ms-1">Ново</span> }</h2>
+                    @if (staffMessage != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(staffMessage.Comment)) { <p class="mb-1 fs-5">„@staffMessage.Comment“</p> }
+                        await FileLinks(staffFiles);
+                        <p class="small text-muted mb-3 mt-1">@staffMessage.At.ToString("dd.MM.yyyy HH:mm")</p>
+                    }
+                    <form method="post" enctype="multipart/form-data" asp-action="AddFiles" asp-route-id="@Model.Id">
+                        <label class="drop-zone" id="dropZone">
+                            <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                            <strong>Изберете файлове или ги пуснете тук</strong>
+                            <span class="small text-muted">до @ApplicationFileRules.MaxFiles файла · .pdf, .jpg, .png, .doc, .docx · до 5 MB всеки</span>
+                            <input type="file" id="Files" name="files" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                        </label>
+                        <ul class="file-list" id="fileList"></ul>
+                        <div class="small text-danger mt-1" id="fileError"></div>
+                        <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-upload me-1" aria-hidden="true"></i> Качи документите</button>
+                    </form>
+                </div>
+            }
+            else if (staffMessage != null)
+            {
+                <div class="staff-message anim @(IsNew(staffMessage) ? "is-new" : "")" id="staffMessage">
+                    <span class="staff-icon"><i class="bi bi-chat-square-text-fill" aria-hidden="true"></i></span>
+                    <div>
+                        <div class="staff-head">@(staffFiles.Count > 0 && string.IsNullOrWhiteSpace(staffMessage.Comment) ? "Служителят ви изпрати файл" : "Съобщение от служителя")
+                            @if (IsNew(staffMessage)) { <span class="badge text-bg-danger ms-1">Ново</span> }
+                            <span class="when ms-1">@staffMessage.At.ToString("dd.MM.yyyy HH:mm")</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(staffMessage.Comment)) { <p class="mb-0 fs-5">@staffMessage.Comment</p> }
+                        @{ await FileLinks(staffFiles); }
+                    </div>
+                </div>
+            }
+
+            <div class="info-card reveal" id="messages">
+                <h2><i class="bi bi-chat-dots" aria-hidden="true"></i>Съобщения и история</h2>
+                <ul class="conversation">
+                    @foreach (var e in events)
+                    {
+                        <li class="@(e.ByCitizen ? "from-me" : "from-staff") @(IsNew(e) ? "is-new" : "")">
+                            <div class="meta">
+                                <strong>@(e.ByCitizen ? "Вие" : "Служител")</strong>
+                                <span class="when">@e.At.ToString("dd.MM.yyyy HH:mm")</span>
+                                <span class="status @ApplicationStatuses.Css(e.Status)"><i class="bi @ApplicationStatuses.Icon(e.Status)" aria-hidden="true"></i>@ApplicationStatuses.Name(e.Status)</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(e.Comment)) { <div class="bubble">@e.Comment</div> }
+                            @{ await FileLinks(FilesOf(e)); }
+                        </li>
+                    }
+                </ul>
+                @if (open)
+                {
+                    <form method="post" asp-action="Message" asp-route-id="@Model.Id" class="message-form" novalidate>
+                        <label for="Text" class="form-label fw-semibold">Напишете съобщение до служителя</label>
+                        <textarea id="Text" name="Text" class="form-control" rows="3" maxlength="1000" required
+                                  placeholder="Например: Може ли да получа документа в петък?">@message.Text</textarea>
+                        <button type="submit" class="btn btn-primary mt-2"><i class="bi bi-send me-1" aria-hidden="true"></i> Изпрати</button>
+                    </form>
+                }
+            </div>
+
+            @if (ViewBag.InfoRequests is List<InfoRequest> infoRequests && infoRequests.Count > 0)
+            {
+                <div class="info-card reveal" id="officialChecks">
+                    <h2><i class="bi bi-arrow-left-right" aria-hidden="true"></i>Служебно от други институции</h2>
+                    <p class="text-muted">Служителят взима тези документи сам. Не е нужно да ходите до другата институция.</p>
+                    <ul class="info-requests mb-0">
+                        @foreach (var r in infoRequests)
+                        {
+                            <li class="@(r.IsAnswered ? "answered" : "waiting")">
+                                <div class="d-flex flex-wrap justify-content-between gap-2">
+                                    <strong>@r.ToInstitution!.Name</strong>
+                                    @if (r.IsAnswered) { <span class="badge text-bg-success">получено @r.AnsweredAt!.Value.ToString("dd.MM.yyyy")</span> }
+                                    else { <span class="badge text-bg-warning">поискано @r.CreatedAt.ToString("dd.MM.yyyy")</span> }
+                                </div>
+                                <div class="mt-1">@r.Question</div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <div class="info-card reveal">
+                <h2><i class="bi bi-card-text" aria-hidden="true"></i>Данни на заявлението</h2>
+                <p class="fs-5 app-details-text">@Model.Details</p>
+                <div class="fact"><i class="bi bi-envelope-paper" aria-hidden="true"></i>
+                    <div><div class="label">Получаване на резултата</div>@Model.ResultDelivery
+                        @if (!string.IsNullOrWhiteSpace(Model.DeliveryAddress)) { <div class="small text-muted">@Model.DeliveryAddress</div> }
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card reveal">
+                <h2><i class="bi bi-paperclip" aria-hidden="true"></i>Документи</h2>
+                @foreach (var group in new[] { (Title: "От служителя", Id: "staffFiles", Files: Model.Files.Where(f => f.ByStaff).ToList()),
+                                               (Title: "Вашите документи", Id: "myFiles", Files: Model.Files.Where(f => !f.ByStaff).ToList()) })
+                {
+                    if (group.Files.Count == 0) continue;
+                    <h3 class="h6 text-muted mt-3 mb-2">@group.Title</h3>
+                    <ul class="file-list mt-0" id="@group.Id">
+                        @foreach (var f in group.Files.OrderBy(f => f.UploadedAt))
+                        {
+                            <li>
+                                <i class="bi @ApplicationFileRules.Icon(f.FileName)" aria-hidden="true"></i>
+                                <a asp-action="File" asp-route-id="@Model.Id" asp-route-fileId="@f.Id">@f.FileName</a>
+                                <span class="size">@ApplicationFileRules.Size(f.Size) · @f.UploadedAt.ToString("dd.MM.yyyy")</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <aside class="aside-card anim-pop">
+                <div class="text-muted fw-semibold mb-2">Статус</div>
+                <span class="status fs-6 @ApplicationStatuses.Css(Model.Status)" id="appStatus"><i class="bi @ApplicationStatuses.Icon(Model.Status)" aria-hidden="true"></i>@ApplicationStatuses.Name(Model.Status)</span>
+                <div class="fact mt-3"><i class="bi bi-calendar-event" aria-hidden="true"></i>
+                    <div><div class="label">Подадено на</div>@Model.CreatedAt.ToString("dd.MM.yyyy HH:mm")</div>
+                </div>
+                @if (expected != null)
+                {
+                    <div class="fact"><i class="bi bi-flag" aria-hidden="true"></i>
+                        <div><div class="label">Очаквано готово до</div><span id="expectedDate">@expected.Value.ToString("dd.MM.yyyy")</span>
+                            <div class="small text-muted">@DigitalAssistant.Services.WorkingDays.Text(Model.DeadlineDays), без почивните и празничните дни</div></div>
+                    </div>
+                }
+                <div class="fact"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                    <div><div class="label">Последна промяна</div>@Model.UpdatedAt.ToString("dd.MM.yyyy HH:mm")</div>
+                </div>
+                <div class="fact"><i class="bi bi-cash-coin" aria-hidden="true"></i>
+                    <div><div class="label">Такса</div>@(Model.Fee == 0 ? "безплатно" : Model.Fee.ToString("0.00") + " €")@(Model.Express ? " · бърза услуга" : "")
+                        <div class="small text-muted">плаща се на гишето или по банков път</div></div>
+                </div>
+                <a class="btn btn-primary w-100 mt-2" asp-action="Receipt" asp-route-id="@Model.Id"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i> Потвърждение (PDF)</a>
+                <a class="btn btn-outline-primary w-100 mt-2" asp-action="Index"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Всички заявления</a>
+            </aside>
+        </div>
+    </div>
+</div>
+
+@section Scripts { <script src="~/js/upload.js" asp-append-version="true"></script> }

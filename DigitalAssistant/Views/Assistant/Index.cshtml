@@ -1,0 +1,24 @@
+@model DigitalAssistant.Models.GuideViewModel
+@{
+    ViewData["Title"] = Model.Step == DigitalAssistant.Models.GuideStep.Guide ? "Упътване: " + Model.Service!.Name : "Дигитален помощник";
+    ViewData["Help"] = "vapros";
+}
+
+<section class="hero page-hero guide-hero">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span>
+    <div class="container">
+        <span class="eyebrow anim" style="--i:0"><span class="dot"><i class="bi bi-signpost-2" aria-hidden="true"></i></span>Няколко въпроса · подробно упътване</span>
+        <h1 class="anim" style="--i:1">Дигитален помощник</h1>
+        <p class="lead anim mb-0" style="--i:2">Отговорете на няколко кратки въпроса и ще получите упътване стъпка по стъпка: какво да подготвите, къде да отидете, как да стигнете и кога е готово.</p>
+    </div>
+</section>
+
+<div class="container guide-page">
+    <div id="guide" aria-live="polite">
+        <partial name="_Guide" model="Model" />
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/guide.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,59 @@
+@model List<InfoRequest>
+@{
+    ViewData["Title"] = "Служебни справки";
+    ViewData["Help"] = "admin-spravki-institucii";
+    string tab = ViewBag.Tab;
+    AdminUser? me = ViewBag.Me;
+    int waiting = ViewBag.WaitingCount;
+}
+<h1>Служебни справки</h1>
+<p class="text-muted">Справки от служители на други институции, които обработват заявление и им трябва информация от
+    @(me?.Institution == null ? "някоя от институциите" : me.Institution.Name). Отговорете тук и гражданинът няма да ходи до вас за документ.</p>
+@if (me?.Institution == null)
+{
+    <div class="alert alert-info small"><i class="bi bi-info-circle me-1" aria-hidden="true"></i> Не сте към конкретна институция, затова виждате справките до всички. Главният администратор може да ви зачисли към институция от „Служители“.</div>
+}
+@if (TempData["Error"] is string err) { <div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i> @err</div> }
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="chip @(tab == "waiting" ? "active" : "")" asp-action="Index" asp-route-tab="waiting">Чакат отговор <span class="badge @(waiting > 0 ? "text-bg-danger" : "text-bg-light") ms-1">@waiting</span></a>
+    <a class="chip @(tab == "answered" ? "active" : "")" asp-action="Index" asp-route-tab="answered">Отговорени</a>
+    <a class="chip @(tab == "sent" ? "active" : "")" asp-action="Index" asp-route-tab="sent">Изпратени от мен</a>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="card card-body text-muted">@(tab == "waiting" ? "Няма справки, които чакат отговор." : "Няма справки.")</div>
+}
+else
+{
+    <ul class="info-requests" id="infoRequestList">
+        @foreach (var r in Model)
+        {
+            <li class="@(r.IsAnswered ? "answered" : "waiting")">
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                    <strong>@(tab == "sent" ? "До " + r.ToInstitution!.Name : "От " + r.FromInstitution + " (" + r.CreatedBy + ")")</strong>
+                    <span class="small text-muted">@r.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                </div>
+                <div class="small text-muted">Заявление № @r.Application!.Number · @r.Application.Service!.Name @(tab != "sent" ? "· до " + r.ToInstitution!.Name : "")</div>
+                <div class="mt-1">@r.Question</div>
+                @if (r.IsAnswered)
+                {
+                    <div class="info-answer"><span class="small fw-semibold">Отговор от @r.AnsweredBy (@r.AnsweredAt!.Value.ToString("dd.MM.yyyy HH:mm")):</span> @r.Answer
+                        @if (r.AnswerFileName != null) { <div class="small"><i class="bi bi-paperclip" aria-hidden="true"></i> @r.AnswerFileName</div> }
+                    </div>
+                }
+                <div class="mt-2">
+                    @if (tab == "sent")
+                    {
+                        <a class="btn btn-sm btn-outline-primary" asp-controller="Applications" asp-action="Details" asp-route-id="@r.ApplicationId" asp-fragment="infoRequests">Към заявлението</a>
+                    }
+                    else if (!r.IsAnswered)
+                    {
+                        <a class="btn btn-sm btn-primary" asp-action="Answer" asp-route-id="@r.Id"><i class="bi bi-reply me-1" aria-hidden="true"></i> Отговори</a>
+                    }
+                </div>
+            </li>
+        }
+    </ul>
+}

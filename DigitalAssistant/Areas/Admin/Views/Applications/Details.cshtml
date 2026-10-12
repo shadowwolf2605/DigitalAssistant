@@ -1,0 +1,373 @@
+@using DigitalAssistant.Services
+@model StatusChangeModel
+@{
+    var app = Model.Application!;
+    ViewData["Title"] = "Заявление № " + app.Number;
+    ViewData["Help"] = "admin-zayavleniya";
+    DateTime? seenBefore = ViewBag.SeenBefore;
+    DateTime? expected = ViewBag.Expected;
+    List<ScheduledReply> scheduled = ViewBag.Scheduled;
+    List<InfoRequest> infoRequests = ViewBag.InfoRequests;
+    List<Institution> institutions = ViewBag.Institutions;
+    List<Application> otherApps = ViewBag.OtherApplications;
+    var official = ServiceText.Documents(app.Service!.OfficialDocuments);
+    var askDraft = TempData["AskDraft"] as string;
+    var askInstitution = TempData["AskInstitution"] as int?;
+    // Ако заявлението още не е отваряно, новото е всичко след подаването
+    var since = seenBefore ?? app.Events.Select(e => e.At).DefaultIfEmpty(app.CreatedAt).Min();
+    bool IsNew(ApplicationEvent e) => e.ByCitizen && e.At > since;
+    var newMessages = app.Events.Where(IsNew).Where(e => !string.IsNullOrWhiteSpace(e.Comment)).OrderByDescending(e => e.At).ToList();
+}
+<nav aria-label="breadcrumb"><ol class="breadcrumb mb-2">
+    <li class="breadcrumb-item"><a asp-action="Index">Заявления</a></li>
+    <li class="breadcrumb-item active" aria-current="page">№ @app.Number</li>
+</ol></nav>
+<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <h1 class="mb-0">Заявление № @app.Number</h1>
+    <span class="status @ApplicationStatuses.Css(app.Status)" id="appStatus"><i class="bi @ApplicationStatuses.Icon(app.Status)" aria-hidden="true"></i>@ApplicationStatuses.Name(app.Status)</span>
+</div>
+
+@if (TempData["Error"] is string err) { <div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i> @err</div> }
+@if (newMessages.Count > 0)
+{
+    <div id="citizenMessages">
+    @foreach (var m in newMessages)
+    {
+    <div class="staff-message is-new mb-3">
+        <span class="staff-icon"><i class="bi bi-chat-square-text-fill" aria-hidden="true"></i></span>
+        <div>
+            <div class="staff-head">Ново съобщение от гражданина <span class="when ms-1">@m.At.ToString("dd.MM.yyyy HH:mm")</span></div>
+            <p class="mb-0 fs-5">@m.Comment</p>
+        </div>
+    </div>
+    }
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-xl-8">
+        <div class="info-card">
+            <h2><i class="bi bi-card-text" aria-hidden="true"></i>Данни на заявлението</h2>
+            <div class="row g-3">
+                <div class="col-md-6"><div class="text-muted small fw-semibold">Услуга</div>@app.Service!.Name @if (app.Express) { <span class="badge text-bg-warning ms-1">бърза услуга</span> }<div class="small text-muted">@app.Service.Institution!.Name</div></div>
+                <div class="col-md-3"><div class="text-muted small fw-semibold">Подадено на</div>@app.CreatedAt.ToString("dd.MM.yyyy HH:mm")</div>
+                @if (expected != null)
+                {
+                    <div class="col-md-3"><div class="text-muted small fw-semibold">Очаквано готово до</div>@expected.Value.ToString("dd.MM.yyyy")</div>
+                }
+                else if (app.Status == ApplicationStatus.NeedsDocuments)
+                {
+                    <div class="col-md-3"><div class="text-muted small fw-semibold">Срок</div>започва отначало, когато гражданинът качи документите</div>
+                }
+                else
+                {
+                    <div class="col-md-3"><div class="text-muted small fw-semibold">Приключено на</div>@ApplicationStatuses.StatusSince(app).ToString("dd.MM.yyyy")</div>
+                }
+                <div class="col-12 app-details-text"><div class="text-muted small fw-semibold">Какво заявява</div>@app.Details</div>
+                <div class="col-md-6"><div class="text-muted small fw-semibold">Получаване на резултата</div>@app.ResultDelivery
+                    @if (!string.IsNullOrWhiteSpace(app.DeliveryAddress)) { <div class="small">@app.DeliveryAddress</div> }
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <h2><i class="bi bi-person-vcard" aria-hidden="true"></i>Гражданин</h2>
+            <div class="row g-3">
+                <div class="col-md-6"><div class="text-muted small fw-semibold">Име</div>@app.Citizen!.FullName</div>
+                <div class="col-md-6"><div class="text-muted small fw-semibold">ЕГН</div><span id="citizenEgn">@ViewBag.Egn</span></div>
+                <div class="col-md-6 text-break"><div class="text-muted small fw-semibold">Имейл</div><a href="mailto:@app.Citizen.Email">@app.Citizen.Email</a>
+                    @if (!app.Citizen.EmailConfirmed) { <span class="badge text-bg-warning ms-1">непотвърден</span> }</div>
+                <div class="col-md-6"><div class="text-muted small fw-semibold">Телефон</div>@app.Citizen.Phone</div>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <h2><i class="bi bi-paperclip" aria-hidden="true"></i>Документи (@app.Files.Count)</h2>
+            <ul class="file-list mt-0" id="appFiles">
+                @foreach (var f in app.Files.OrderBy(f => f.UploadedAt))
+                {
+                    <li>
+                        <i class="bi @ApplicationFileRules.Icon(f.FileName)" aria-hidden="true"></i>
+                        <a asp-action="File" asp-route-id="@app.Id" asp-route-fileId="@f.Id">@f.FileName</a>
+                        @if (f.ByStaff) { <span class="badge text-bg-primary from-staff-badge">изпратен на гражданина</span> }
+                        <span class="size">@ApplicationFileRules.Size(f.Size) · @f.UploadedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="info-card" id="infoRequests">
+            <h2><i class="bi bi-arrow-left-right" aria-hidden="true"></i>Служебни справки от други институции</h2>
+            <p class="text-muted small">Ако ви трябва документ или информация от друга институция, поискайте я оттук. Гражданинът не ходи там, а отговорът идва в системата.</p>
+            @if (official.Count > 0)
+            {
+                <div class="official-box small mb-3">
+                    <div class="fw-semibold mb-1">За тази услуга се взимат служебно:</div>
+                    <ul class="mb-0">@foreach (var d in official) { <li>@d</li> }</ul>
+                </div>
+            }
+            @if (infoRequests.Count > 0)
+            {
+                <ul class="info-requests">
+                    @foreach (var r in infoRequests)
+                    {
+                        <li class="@(r.IsAnswered ? "answered" : "waiting")">
+                            <div class="d-flex flex-wrap justify-content-between gap-2">
+                                <strong><i class="bi bi-bank me-1" aria-hidden="true"></i>@r.ToInstitution!.Name</strong>
+                                @if (r.IsAnswered) { <span class="badge text-bg-success">отговорено @r.AnsweredAt!.Value.ToString("dd.MM.yyyy HH:mm")</span> }
+                                else { <span class="badge text-bg-warning">чака отговор</span> }
+                            </div>
+                            <div class="small text-muted">Поискано от @r.CreatedBy на @r.CreatedAt.ToString("dd.MM.yyyy HH:mm")</div>
+                            <div class="mt-1">@r.Question</div>
+                            @if (r.IsAnswered)
+                            {
+                                <div class="info-answer">
+                                    <div class="small fw-semibold">Отговор от @r.AnsweredBy:</div>
+                                    <div style="white-space: pre-line">@r.Answer</div>
+                                    @if (r.AnswerFileName != null)
+                                    {
+                                        <a class="d-inline-block mt-1" asp-action="InfoFile" asp-route-id="@app.Id" asp-route-requestId="@r.Id"><i class="bi @ApplicationFileRules.Icon(r.AnswerFileName) me-1" aria-hidden="true"></i>@r.AnswerFileName</a>
+                                    }
+                                </div>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+            <form method="post" asp-action="AskInstitution" asp-route-id="@app.Id" class="row g-2 mt-1" id="askForm">
+                <div class="col-md-5">
+                    <label for="toInstitutionId" class="form-label small fw-semibold mb-1">До институция</label>
+                    <select id="toInstitutionId" name="toInstitutionId" class="form-select" required>
+                        <option value="">Изберете…</option>
+                        @foreach (var i in institutions.Where(i => i.Id != app.Service!.InstitutionId)) { <option value="@i.Id" selected="@(askInstitution == i.Id)">@i.Name</option> }
+                    </select>
+                </div>
+                <div class="col-md-7">
+                    <label for="question" class="form-label small fw-semibold mb-1">Какво ви трябва</label>
+                    <input id="question" name="question" class="form-control" maxlength="1000" required value="@askDraft"
+                           placeholder="@(official.Count > 0 ? "напр. " + official[0] : "напр. удостоверение за раждане на лицето")" />
+                </div>
+                <div class="col-12"><button type="submit" class="btn btn-outline-primary"><i class="bi bi-send me-1" aria-hidden="true"></i> Изпрати справката</button></div>
+            </form>
+        </div>
+
+        @if (otherApps.Count > 0)
+        {
+            <div class="info-card" id="otherApplications">
+                <h2><i class="bi bi-collection" aria-hidden="true"></i>Други заявления на гражданина (@otherApps.Count)</h2>
+                <p class="text-muted small">Подадени към същата или към други институции. Ако документът вече е качен там, не го искайте отново.</p>
+                <ul class="other-apps">
+                    @foreach (var o in otherApps)
+                    {
+                        <li>
+                            <div class="d-flex flex-wrap justify-content-between gap-2">
+                                <a asp-action="Details" asp-route-id="@o.Id">№ @o.Number · @o.Service!.Name</a>
+                                <span class="status @ApplicationStatuses.Css(o.Status)"><i class="bi @ApplicationStatuses.Icon(o.Status)" aria-hidden="true"></i>@ApplicationStatuses.Name(o.Status)</span>
+                            </div>
+                            <div class="small text-muted">@o.Service!.Institution!.Name · подадено на @o.CreatedAt.ToString("dd.MM.yyyy")</div>
+                            @if (o.Files.Count > 0)
+                            {
+                                <div class="small mt-1">
+                                    @foreach (var f in o.Files)
+                                    {
+                                        <a class="me-2 text-nowrap" asp-action="File" asp-route-id="@o.Id" asp-route-fileId="@f.Id"><i class="bi @ApplicationFileRules.Icon(f.FileName) me-1" aria-hidden="true"></i>@f.FileName</a>
+                                    }
+                                </div>
+                            }
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <div class="info-card">
+            <h2><i class="bi bi-chat-dots" aria-hidden="true"></i>Съобщения и история</h2>
+            <ul class="conversation">
+                @foreach (var e in app.Events.OrderByDescending(e => e.At))
+                {
+                    <li class="@(e.ByCitizen ? "from-staff" : "from-me") @(IsNew(e) ? "is-new" : "")">
+                        <div class="meta">
+                            <strong>@(e.ByCitizen ? "Гражданин" : "Служител " + e.Author)</strong>
+                            <span class="when">@e.At.ToString("dd.MM.yyyy HH:mm")</span>
+                            <span class="status @ApplicationStatuses.Css(e.Status)"><i class="bi @ApplicationStatuses.Icon(e.Status)" aria-hidden="true"></i>@ApplicationStatuses.Name(e.Status)</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(e.Comment)) { <div class="bubble">@e.Comment</div> }
+                        @{ var eventFiles = app.Files.Where(f => f.EventId == e.Id).ToList(); }
+                        @if (eventFiles.Count > 0)
+                        {
+                            <ul class="msg-files">
+                                @foreach (var f in eventFiles)
+                                {
+                                    <li><a asp-action="File" asp-route-id="@app.Id" asp-route-fileId="@f.Id"><i class="bi @ApplicationFileRules.Icon(f.FileName)" aria-hidden="true"></i>@f.FileName <span class="size">@ApplicationFileRules.Size(f.Size)</span></a></li>
+                                }
+                            </ul>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        @if (scheduled.Count > 0)
+        {
+            <div id="scheduledReplies">
+            @foreach (var r in scheduled)
+            {
+                // Ако статусът е сменен след насрочването, отговорът ще изпрати само съобщението (както в ScheduledReplySender)
+                var statusChanged = app.Status != ApplicationStatuses.StatusAt(app, r.CreatedAt);
+                var changesStatus = !statusChanged && r.Status != app.Status;
+                <div class="scheduled-reply mb-3">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="bi bi-clock-history" aria-hidden="true"></i>
+                        <strong>Насрочен отговор</strong>
+                    </div>
+                    <div class="small mb-2">Ще се изпрати на <strong>@r.SendAt.ToString("dd.MM.yyyy") в @r.SendAt.ToString("HH:mm") ч.</strong> · от @r.CreatedBy</div>
+                    @if (changesStatus)
+                    {
+                        <span class="status @ApplicationStatuses.Css(r.Status)"><i class="bi @ApplicationStatuses.Icon(r.Status)" aria-hidden="true"></i>@ApplicationStatuses.Name(r.Status)</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(r.Comment)) { <p class="mt-2 mb-1 scheduled-text">@r.Comment</p> }
+                    @if (changesStatus) { <div class="small text-muted mt-1">Ако дотогава статусът бъде сменен, ще се изпрати само съобщението.</div> }
+                    else if (statusChanged && r.Status != app.Status) { <div class="small text-muted mt-1">Статусът вече е сменен, затова ще се изпрати само съобщението.</div> }
+                    @if (r.Files.Count > 0)
+                    {
+                        <ul class="small mb-2 mt-1 ps-3">
+                            @foreach (var f in r.Files) { <li>@f.FileName <span class="text-muted">(@ApplicationFileRules.Size(f.Size))</span></li> }
+                        </ul>
+                    }
+                    <form method="post" asp-action="CancelScheduled" asp-route-id="@app.Id" asp-route-replyId="@r.Id" class="mt-2"
+                          onsubmit="return confirm('Да отменя ли насрочения отговор? Той няма да бъде изпратен.');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg me-1" aria-hidden="true"></i> Отмени</button>
+                    </form>
+                </div>
+            }
+            </div>
+        }
+        <form method="post" enctype="multipart/form-data" asp-action="ChangeStatus" class="aside-card" id="replyForm" data-current="@app.Status" data-saved="@(TempData["ReplySaved"] != null ? "true" : null)">
+            <input type="hidden" asp-for="ApplicationId" />
+            <input type="hidden" name="CurrentStatus" value="@app.Status" />
+            <h2 class="h5 mb-3"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i> Статус и съобщение</h2>
+            <div class="mb-3">
+                <label asp-for="Status" class="form-label"></label>
+                <select asp-for="Status" class="form-select">
+                    @foreach (var st in ApplicationStatuses.All)
+                    {
+                        <option value="@st" selected="@(st == Model.Status)">@ApplicationStatuses.Name(st)</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Comment" class="form-label"></label>
+                <textarea asp-for="Comment" class="form-control" rows="4" maxlength="1000"
+                          placeholder="Например: Документът е готов, елате на гише 3."></textarea>
+                <div class="form-text">Задължително при „Нужни са още документи“ и „Отказано“. Можете да изпратите съобщение и без да сменяте статуса. Гражданинът го вижда най-горе в заявлението и получава имейл.</div>
+            </div>
+            <div class="mb-3">
+                <label for="Files" class="form-label">Файлове към гражданина <span class="text-muted fw-normal">(по желание)</span></label>
+                <label class="drop-zone compact" id="dropZone">
+                    <i class="bi bi-paperclip" aria-hidden="true"></i>
+                    <strong>Изберете файлове</strong>
+                    <span class="small text-muted">например готовия документ · до @ApplicationFileRules.MaxFiles файла · .pdf, .jpg, .png, .doc, .docx · до 5 MB</span>
+                    <input type="file" id="Files" name="Files" multiple data-optional accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                </label>
+                <ul class="file-list" id="fileList"></ul>
+                <div class="small text-danger mt-1" id="fileError"></div>
+            </div>
+            <fieldset class="mb-3">
+                <legend class="form-label fs-6 fw-semibold mb-1">Кога да се изпрати</legend>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="SendLater" id="send-now" value="false" checked="@(!Model.SendLater)" />
+                    <label class="form-check-label" for="send-now">Веднага</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="SendLater" id="send-later" value="true" checked="@Model.SendLater" />
+                    <label class="form-check-label" for="send-later">На избрани дата и час</label>
+                </div>
+                <div class="mt-2" id="sendAtBox">
+                    <label asp-for="SendAt" class="form-label small mb-1"></label>
+                    <input asp-for="SendAt" class="form-control" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" />
+                    <div class="form-text">Дотогава гражданинът не вижда отговора, а вие можете да го отмените.</div>
+                </div>
+            </fieldset>
+            <button type="submit" class="btn btn-primary w-100" id="replySubmit"><i class="bi bi-check2 me-1" aria-hidden="true"></i> <span>Запази и изпрати</span></button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script src="~/js/upload.js" asp-append-version="true"></script>
+<script>
+    // Датата се показва само при „На избрани дата и час“
+    (function () {
+        const form = document.getElementById('replyForm');
+        const update = () => {
+            const later = document.getElementById('send-later').checked;
+            document.getElementById('sendAtBox').hidden = !later;
+            document.querySelector('#replySubmit span').textContent = later ? 'Насрочи' : 'Запази и изпрати';
+        };
+        form.addEventListener('change', update);
+        update();
+
+        // Ако входът изтече, докато служителят пише, след новия вход написаното се връща
+        const draftKey = 'reply-draft:' + form.elements['ApplicationId'].value;
+        const comment = form.elements['Comment'];
+        try {
+            const stored = JSON.parse(sessionStorage.getItem(draftKey) || 'null');
+            sessionStorage.removeItem(draftKey);
+            if (stored && !form.dataset.saved && !comment.value.trim()) {
+                comment.value = stored.comment || '';
+                form.elements['Status'].value = stored.status;
+                if (stored.later) {
+                    document.getElementById('send-later').checked = true;
+                    form.elements['SendAt'].value = stored.at || '';
+                }
+                update();
+                const note = document.createElement('div');
+                note.className = 'alert alert-warning small py-2';
+                note.setAttribute('role', 'status');
+                note.textContent = 'Отговорът не беше изпратен. Написаното е възстановено – проверете го и натиснете бутона отново.' +
+                    (stored.files ? ' Изберете файловете отново.' : '');
+                form.querySelector('h2').after(note);
+            }
+        } catch (e) { }
+
+        // Проверка преди изпращане, за да не се губят избраните файлове при грешка
+        form.addEventListener('submit', e => {
+            const status = form.elements['Status'].value;
+            const comment = form.elements['Comment'].value.trim();
+            const files = document.getElementById('Files').files.length;
+            const later = document.getElementById('send-later').checked;
+            const at = form.elements['SendAt'].value;
+            let msg = '';
+            if ((status === 'NeedsDocuments' || status === 'Rejected') && !comment)
+                msg = status === 'Rejected' ? 'Напишете причината за отказа.' : 'Напишете кои документи липсват.';
+            else if (status === form.dataset.current && !comment && !files)
+                msg = 'Изберете нов статус, напишете съобщение или прикачете файл за гражданина.';
+            else if (later && !at)
+                msg = 'Изберете дата и час на изпращане.';
+            else if (later && new Date(at) <= new Date())
+                msg = 'Датата и часът трябва да са в бъдещето.';
+            let error = document.getElementById('replyError');
+            if (!msg) {
+                if (error) error.remove();
+                try {
+                    sessionStorage.setItem(draftKey, JSON.stringify({ status, comment, later, at, files }));
+                } catch (e) { }
+                return;
+            }
+            e.preventDefault();
+            // Старото съобщение за успех горе вече не важи – не трябва да изглежда, че и това е изпратено
+            document.querySelectorAll('.admin-content > .alert-success').forEach(x => x.remove());
+            if (!error) {
+                error = document.createElement('div');
+                error.id = 'replyError';
+                error.className = 'alert alert-danger small py-2';
+                error.setAttribute('role', 'alert');
+                form.querySelector('h2').after(error);
+            }
+            error.textContent = msg;
+            error.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        });
+    })();
+</script>
+}

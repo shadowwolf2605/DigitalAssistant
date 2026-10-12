@@ -1,0 +1,173 @@
+@using DigitalAssistant.Models
+@{
+    ViewData["Title"] = "Начало";
+    ViewData["Help"] = "vapros";
+    var categories = (List<(int Id, string Name, int Count)>)ViewBag.Categories;
+
+    // Чести ситуации по теми. При клик помощникът търси услугата и продължава с въпросите.
+    var topics = new (string Id, string Title, string Icon, string[] Questions)[]
+    {
+        ("t-docs", "Лични документи", "bi-person-vcard", new[] {
+            "Какво ми трябва за лична карта?", "Изгубих си личната карта", "Колко струва паспорт?",
+            "Как да извадя паспорт на детето си?", "Трябва ми свидетелство за съдимост за работа" }),
+        ("t-cars", "Шофьори и коли", "bi-car-front", new[] {
+            "Как да си извадя шофьорска книжка?", "Изтича ми шофьорската книжка", "Загубих си шофьорската книжка",
+            "Купих кола втора ръка, какво трябва да направя?", "Имам ли глоби от КАТ?", "Вдигнаха ми колата, къде да платя?",
+            "Как да купя винетка?" }),
+        ("t-family", "Семейство", "bi-people", new[] {
+            "Как да регистрирам новородено?", "Ще се женим, какво трябва?", "Удостоверение за наследници",
+            "Как става развод?", "Трябва ми апостил на удостоверението за раждане" }),
+        ("t-home", "Дом и данъци", "bi-house-door", new[] {
+            "Как да сменя настоящия си адрес?", "Как да платя данък сгради?", "Купих апартамент, трябва ли да го декларирам?",
+            "Откъде се взема скица на имот?", "Искам да построя къща, какво ми трябва?" }),
+        ("t-work", "Работа и пенсии", "bi-briefcase", new[] {
+            "Кога мога да се пенсионирам?", "Уволниха ме, полага ли ми се обезщетение?", "Как да се регистрирам в бюрото по труда?",
+            "Как се взема майчинство?", "Кой плаща болничния?" }),
+        ("t-health", "Здраве и деца", "bi-heart-pulse", new[] {
+            "Как да сменя личния си лекар?", "Как да запиша детето на детска градина?", "Детето ми тръгва в първи клас, как да го запиша?",
+            "Как се получават детски надбавки?", "Пътувам до Италия, трябва ли ми европейска здравна карта?" }),
+        ("t-business", "Бизнес и НАП", "bi-shop", new[] {
+            "Как да регистрирам фирма?", "Как се подава данъчна декларация?", "Кога трябва да се регистрирам по ДДС?",
+            "Как да получа ПИК от НАП?", "Работя на свободна практика, как да се осигурявам?" }),
+    };
+}
+
+<section class="hero hero-home">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span><span class="blob blob-3"></span>
+    <div class="container">
+        <div class="row align-items-center g-4 g-lg-5">
+            <div class="col-lg-6">
+                <span class="eyebrow anim" style="--i:0"><span class="dot"><i class="bi bi-stars" aria-hidden="true"></i></span>Упътване стъпка по стъпка · безплатно · 24/7</span>
+                <h1 class="hero-title anim" style="--i:1">С какво можем да помогнем?</h1>
+                <p class="hero-sub anim" style="--i:2">Отговорете на няколко кратки въпроса и помощникът ще ви даде подробно упътване: какви документи да подготвите, къде да отидете и как да стигнете, колко струва и кога е готово.</p>
+                <div class="stats d-none d-sm-grid anim" style="--i:3">
+                    <div><div class="stat-num" data-count="@ViewBag.ServiceCount">@ViewBag.ServiceCount</div><div class="stat-label">услуги</div></div>
+                    <div><div class="stat-num" data-count="@categories.Count">@categories.Count</div><div class="stat-label">категории</div></div>
+                    <div><div class="stat-num" data-count="@ViewBag.InstitutionCount">@ViewBag.InstitutionCount</div><div class="stat-label">институции</div></div>
+                </div>
+                <div class="trust anim" style="--i:4">
+                    <span><i class="bi bi-send-check" aria-hidden="true"></i>Онлайн заявления</span>
+                    <span><i class="bi bi-geo-alt" aria-hidden="true"></i>Маршрут до най-близкото място</span>
+                    <span><i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i>Образци на заявления</span>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="chat-wrap">
+                <div class="float-badge b1" aria-hidden="true"><span class="ico"><i class="bi bi-file-earmark-check"></i></span><span>Документи<small>какво ви липсва</small></span></div>
+                <div class="float-badge b2" aria-hidden="true"><span class="ico"><i class="bi bi-clock-history"></i></span><span>Срок<small>в работни дни</small></span></div>
+                <div class="float-badge b3" aria-hidden="true"><span class="ico"><i class="bi bi-geo-alt"></i></span><span>Как да стигнете<small>пеша, с кола, с автобус</small></span></div>
+                <div class="start-card anim-pop" id="start">
+                    <div class="start-q">За какво ви е нужна помощ?</div>
+                    <div class="start-hint">Изберете тема. Помощникът ще ви зададе няколко кратки въпроса и ще ви даде упътване стъпка по стъпка.</div>
+                    <div class="start-grid">
+                        @foreach (var c in categories)
+                        {
+                            <a class="start-opt" data-tone="@CategoryStyle.Tone(c.Id)" asp-controller="Assistant" asp-action="Index" asp-route-c="@c.Id">
+                                <span class="opt-ico @CategoryStyle.Tone(c.Id)"><i class="bi @CategoryStyle.Icon(c.Name)" aria-hidden="true"></i></span>
+                                <span>@c.Name</span>
+                            </a>
+                        }
+                    </div>
+                    <form class="guide-search" asp-controller="Assistant" asp-action="Search" method="get" role="search">
+                        <label for="q" class="form-label small text-muted mb-1">Знаете името на услугата? Потърсете я с няколко думи:</label>
+                        <div class="input-group">
+                            <input id="q" name="q" class="form-control" maxlength="300" placeholder="напр. шофьорска книжка" required />
+                            <button class="btn btn-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Търси</span></button>
+                        </div>
+                    </form>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <a href="#popular" class="scroll-hint" aria-label="Надолу"><i class="bi bi-chevron-double-down" aria-hidden="true"></i></a>
+</section>
+
+<section class="section section-alt" id="popular">
+    <div class="container text-center">
+        <div class="kicker reveal">Чести ситуации</div>
+        <h2 class="section-title reveal">Какво питат хората най-често</h2>
+        <p class="section-sub reveal">Изберете тема и натиснете ситуация – помощникът ще намери услугата и ще ви води нататък.</p>
+        <div class="topic-tabs reveal" role="tablist">
+            @for (int i = 0; i < topics.Length; i++)
+            {
+                <button type="button" class="topic-tab @(i == 0 ? "active" : "")" data-topic="@topics[i].Id" role="tab" aria-selected="@(i == 0 ? "true" : "false")">
+                    <i class="bi @topics[i].Icon" aria-hidden="true"></i>@topics[i].Title
+                </button>
+            }
+        </div>
+        @for (int i = 0; i < topics.Length; i++)
+        {
+            <div class="topic-panel @(i == 0 ? "active" : "")" id="@topics[i].Id" role="tabpanel">
+                @for (int j = 0; j < topics[i].Questions.Length; j++)
+                {
+                    <a class="chip q-chip" style="--i:@j" asp-controller="Assistant" asp-action="Search" asp-route-q="@topics[i].Questions[j]"><i class="bi bi-signpost" aria-hidden="true"></i>@topics[i].Questions[j]</a>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+<section class="section pt-0">
+    <div class="container">
+        <div class="text-center">
+            <div class="kicker reveal">Каталог</div>
+            <h2 class="section-title reveal">Услуги по категории</h2>
+            <p class="section-sub reveal">Разгледайте всички услуги по теми и вижте цялата информация за всяка от тях.</p>
+        </div>
+        <div class="row g-3" data-stagger>
+            @foreach (var c in categories)
+            {
+                <div class="col-sm-6 col-lg-4 reveal">
+                    <a class="cat-card" data-tone="@CategoryStyle.Tone(c.Id)" asp-controller="Services" asp-action="Index" asp-route-categoryId="@c.Id">
+                        <span class="cat-icon @CategoryStyle.Tone(c.Id)"><i class="bi @CategoryStyle.Icon(c.Name)" aria-hidden="true"></i></span>
+                        <span>
+                            <span class="cat-name d-block">@c.Name</span>
+                            <span class="cat-count">@c.Count @(c.Count == 1 ? "услуга" : "услуги")</span>
+                        </span>
+                        <i class="bi bi-arrow-right cat-arrow" aria-hidden="true"></i>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section pt-0">
+    <div class="container">
+        <div class="text-center">
+            <div class="kicker reveal">Как работи</div>
+            <h2 class="section-title reveal">Три стъпки до гишето</h2>
+            <p class="section-sub reveal">Без опашки за информация и без излишни обаждания.</p>
+        </div>
+        <div class="row g-3" data-stagger>
+            <div class="col-md-4 reveal">
+                <div class="step-card"><span class="step-num">1</span><div class="step-icon"><i class="bi bi-ui-checks" aria-hidden="true"></i></div>
+                    <h3 class="h5">Отговорете на въпросите</h3><p class="text-muted mb-0">Изберете темата и услугата, как искате да я заявите и кои документи вече имате.</p></div>
+            </div>
+            <div class="col-md-4 reveal">
+                <div class="step-card"><span class="step-num">2</span><div class="step-icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></div>
+                    <h3 class="h5">Кажете къде сте</h3><p class="text-muted mb-0">Напишете града или разрешете местоположението и ще видите най-близкото място и маршрута до него.</p></div>
+            </div>
+            <div class="col-md-4 reveal">
+                <div class="step-card"><span class="step-num">3</span><div class="step-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></div>
+                    <h3 class="h5">Следвайте упътването</h3><p class="text-muted mb-0">Подгответе липсващите документи, отидете на място или подайте онлайн и вижте кога е готово.</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="pb-2">
+    <div class="container">
+        <div class="hero cta reveal">
+            <span class="blob blob-2"></span><span class="blob blob-3"></span>
+            <h2 class="section-title">Не намирате това, което търсите?</h2>
+            <p class="hero-sub mx-auto mb-4">Разгледайте всички услуги или прочетете краткото упътване.</p>
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+                <a class="btn btn-primary btn-lg" asp-controller="Services" asp-action="Index"><i class="bi bi-grid me-1" aria-hidden="true"></i> Всички услуги</a>
+                <a class="btn btn-light-glass btn-lg" href="@Url.Action("Index", "Help")#vapros"><i class="bi bi-question-circle me-1" aria-hidden="true"></i> Упътване</a>
+            </div>
+        </div>
+    </div>
+</section>
+

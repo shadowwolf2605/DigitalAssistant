@@ -1,0 +1,75 @@
+@model List<Service>
+@{
+    ViewData["Title"] = "Услуги";
+    ViewData["Help"] = "admin-uslugi";
+    var filter = (ServiceFilterModel)ViewBag.Filter;
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="mb-0">Услуги</h1>
+        <p class="text-muted mb-0">Показани: @Model.Count</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Добави услуга</a>
+</div>
+
+<form method="get" class="card card-body mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-6 col-xl"><label class="form-label" for="Name">Име</label><input id="Name" name="Name" value="@filter.Name" class="form-control" /></div>
+        <div class="col-12 col-md-6 col-xl"><label class="form-label" for="CategoryId">Категория</label>
+            <select id="CategoryId" name="CategoryId" class="form-select" asp-items="ViewBag.Categories"><option value="">Всички</option></select></div>
+        <div class="col-12 col-md-6 col-xl"><label class="form-label" for="InstitutionId">Институция</label>
+            <select id="InstitutionId" name="InstitutionId" class="form-select" asp-items="ViewBag.Institutions"><option value="">Всички</option></select></div>
+        <div class="col col-xl-2"><label class="form-label" for="Status">Статус</label>
+            <select id="Status" name="Status" class="form-select">
+                <option value="">Всички</option>
+                <option value="active" selected="@(filter.Status == "active")">Активни</option>
+                <option value="inactive" selected="@(filter.Status == "inactive")">Неактивни</option>
+            </select></div>
+        <div class="col-auto"><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search me-1" aria-hidden="true"></i>Търси</button></div>
+    </div>
+</form>
+
+<div class="table-wrap">
+    <div class="table-responsive border-0">
+        <table class="table table-hover">
+            <thead>
+                <tr><th>№</th><th>Услуга</th><th>Категория</th><th>Такса</th><th>Срок</th><th>Онлайн</th><th>Статус</th><th>Промяна</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model)
+                {
+                    <tr class="@(s.IsActive ? "" : "table-secondary")">
+                        <td>@s.Id</td>
+                        <td>@s.Name<div class="small text-muted">@s.Institution!.Name</div></td>
+                        <td class="small">@s.Category!.Name</td>
+                        <td class="text-nowrap">@(s.Fee == 0 ? "безплатно" : s.Fee.ToString("0.00") + " €")</td>
+                        <td class="text-nowrap">@DigitalAssistant.Services.WorkingDays.Text(s.DeadlineDays)</td>
+                        <td>@(s.AllowOnline ? "да" : "не")</td>
+                        <td><span class="badge rounded-pill @(s.IsActive ? "text-bg-success" : "text-bg-secondary")">@(s.IsActive ? "активна" : "неактивна")</span></td>
+                        <td class="small">@s.UpdatedAt.ToString("dd.MM.yyyy")</td>
+                        <td class="text-nowrap text-end">
+                            <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@s.Id">Промени</a>
+                            @if (s.IsActive)
+                            {
+                                <form asp-action="Deactivate" asp-route-id="@s.Id" method="post" class="d-inline"
+                                      data-confirm="Да се премахне ли услугата „@s.Name“? Тя няма да се вижда от гражданите." onsubmit="return confirm(this.dataset.confirm);">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Премахни</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="Activate" asp-route-id="@s.Id" method="post" class="d-inline">
+                                    <button class="btn btn-sm btn-outline-success" type="submit">Активирай</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="9" class="text-center text-muted py-4">Няма услуги.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

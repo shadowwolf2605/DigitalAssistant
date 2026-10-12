@@ -1,0 +1,92 @@
+@using DigitalAssistant.Models
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model List<DigitalAssistant.Models.Service>
+@{
+    ViewData["Title"] = "Услуги";
+    ViewData["Help"] = "tarsene";
+    var filter = (DigitalAssistant.Models.ServiceFilterModel)ViewBag.Filter;
+    var categoryItems = ((SelectList)ViewBag.Categories).ToList();
+    string Days(int d) => DigitalAssistant.Services.WorkingDays.Text(d);
+}
+
+<section class="hero page-hero">
+    <span class="blob blob-1"></span><span class="blob blob-3"></span>
+    <div class="container">
+        <h1 class="anim" style="--i:0">Административни услуги</h1>
+        <p class="lead anim" style="--i:1">Търсете по име, категория или институция и отворете услугата, за да видите цялата информация.</p>
+        <form method="get" class="search-card mt-4 anim" style="--i:2">
+            <div class="row g-2 align-items-end">
+                <div class="col-lg-4">
+                    <label for="Name" class="form-label">Име на услугата</label>
+                    <div class="input-icon">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <input id="Name" name="Name" value="@filter.Name" class="form-control form-control-lg" placeholder="напр. шофьорска книжка" />
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <label for="CategoryId" class="form-label">Категория</label>
+                    <select id="CategoryId" name="CategoryId" class="form-select form-select-lg" asp-items="ViewBag.Categories">
+                        <option value="">Всички</option>
+                    </select>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <label for="InstitutionId" class="form-label">Институция</label>
+                    <select id="InstitutionId" name="InstitutionId" class="form-select form-select-lg" asp-items="ViewBag.Institutions">
+                        <option value="">Всички</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 d-flex gap-2">
+                    <button class="btn btn-primary btn-lg flex-grow-1" type="submit">Търси</button>
+                    <a class="btn btn-outline-secondary btn-lg px-3" asp-action="Index" title="Изчисти филтъра" aria-label="Изчисти филтъра"><i class="bi bi-x-lg" aria-hidden="true"></i></a>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+<div class="container pt-4">
+    <div class="cat-strip" aria-label="Бърз избор на категория">
+        <a class="chip @(filter.CategoryId == null ? "active" : "")" asp-action="Index"><i class="bi bi-grid" aria-hidden="true"></i>Всички</a>
+        @foreach (var c in categoryItems)
+        {
+            <a class="chip @(c.Selected ? "active" : "")" asp-action="Index" asp-route-categoryId="@c.Value"><i class="bi @CategoryStyle.Icon(c.Text)" aria-hidden="true"></i>@c.Text</a>
+        }
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state card reveal">
+            <i class="bi bi-binoculars" aria-hidden="true"></i>
+            <h2 class="h4 mt-2">Няма услуги, които отговарят на търсенето</h2>
+            <p class="text-muted mb-3">Опитайте с други думи или задайте въпрос на помощника.</p>
+            <div><a class="btn btn-primary" asp-controller="Home" asp-action="Index">Попитайте помощника</a></div>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted mb-0">Намерени услуги: <strong>@Model.Count</strong></p>
+        @foreach (var group in Model.GroupBy(s => s.Category!))
+        {
+            <h2 class="group-title reveal">
+                <span class="cat-icon @CategoryStyle.Tone(group.Key.Id)"><i class="bi @CategoryStyle.Icon(group.Key.Name)" aria-hidden="true"></i></span>
+                @group.Key.Name
+            </h2>
+            <div class="row g-3" data-stagger>
+                @foreach (var s in group)
+                {
+                    <div class="col-md-6 col-xl-4 reveal">
+                        <a class="service-tile" data-tone="@CategoryStyle.Tone(group.Key.Id)" asp-action="Details" asp-route-id="@s.Id">
+                            <span class="name">@s.Name</span>
+                            <span class="inst"><i class="bi bi-bank" aria-hidden="true"></i>@s.Institution!.Name</span>
+                            <span class="meta">
+                                <span class="pill green"><i class="bi bi-cash-coin" aria-hidden="true"></i>@(s.Fee == 0 ? "безплатно" : s.Fee.ToString("0.00") + " €")</span>
+                                <span class="pill amber"><i class="bi bi-clock" aria-hidden="true"></i>@Days(s.DeadlineDays)</span>
+                            </span>
+                            <span class="go">Виж повече <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>

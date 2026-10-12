@@ -1,0 +1,72 @@
+@model List<Application>
+@{
+    ViewData["Title"] = "Заявления";
+    ViewData["Help"] = "admin-zayavleniya";
+    var current = (ApplicationStatus?)ViewBag.Status;
+    var counts = (Dictionary<ApplicationStatus, int>)ViewBag.Counts;
+    bool messages = ViewBag.Messages;
+    bool overdue = ViewBag.Overdue;
+    int messagesCount = ViewBag.MessagesCount;
+    // Ако служител още не е отварял заявлението, ново е всичко след подаването
+    bool HasNew(Application a)
+    {
+        var since = a.AdminSeenAt ?? a.Events.Select(e => e.At).DefaultIfEmpty(a.CreatedAt).Min();
+        return a.Events.Any(e => e.ByCitizen && !string.IsNullOrWhiteSpace(e.Comment) && e.At > since);
+    }
+}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+    <div>
+        <h1 class="mb-1">Онлайн заявления</h1>
+        <p class="text-muted mb-0">Заявленията, подадени от гражданите. Новите са със статус „Подадено“.</p>
+    </div>
+    <form method="get" class="d-flex gap-2">
+        @* Търсенето остава в избрания филтър *@
+        @if (current != null) { <input type="hidden" name="status" value="@current" /> }
+        @if (messages) { <input type="hidden" name="messages" value="true" /> }
+        @if (overdue) { <input type="hidden" name="overdue" value="true" /> }
+        <input class="form-control" type="search" name="q" id="q" value="@ViewBag.Query" placeholder="Номер, име, услуга или ЕГН" aria-label="Търсене" />
+        <button class="btn btn-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Търси</span></button>
+    </form>
+</div>
+
+<div class="cat-strip mb-3" style="--bs-gutter-x:0">
+    <a class="chip @(current == null && !messages && !overdue ? "active" : "")" asp-action="Index" asp-route-q="@ViewBag.Query">Всички <span class="badge text-bg-light ms-1">@counts.Values.Sum()</span></a>
+    <a class="chip @(messages ? "active" : "")" asp-action="Index" asp-route-messages="true" asp-route-q="@ViewBag.Query" id="chipMessages"><i class="bi bi-chat-square-text" aria-hidden="true"></i>Нови съобщения <span class="badge @(messagesCount > 0 ? "text-bg-danger" : "text-bg-light") ms-1">@messagesCount</span></a>
+    @foreach (var st in ApplicationStatuses.All)
+    {
+        <a class="chip @(current == st ? "active" : "")" asp-action="Index" asp-route-status="@st" asp-route-q="@ViewBag.Query">
+            <i class="bi @ApplicationStatuses.Icon(st)" aria-hidden="true"></i>@ApplicationStatuses.Name(st)
+            <span class="badge text-bg-light ms-1">@counts.GetValueOrDefault(st)</span>
+        </a>
+    }
+    @if (overdue)
+    {
+        <a class="chip active" asp-action="Index" asp-route-overdue="true" asp-route-q="@ViewBag.Query" id="chipOverdue"><i class="bi bi-alarm" aria-hidden="true"></i>Закъснели <span class="badge text-bg-light ms-1">@Model.Count</span></a>
+    }
+</div>
+
+<div class="table-wrap">
+    <div class="table-responsive border-0">
+        <table class="table table-hover">
+            <thead><tr><th>Номер</th><th>Подадено на</th><th>Гражданин</th><th>Услуга</th><th>Статус</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var a in Model)
+                {
+                    <tr>
+                        <td class="fw-semibold text-nowrap">№ @a.Number
+                            @if (HasNew(a)) { <span class="badge text-bg-danger ms-1" title="Ново съобщение от гражданина"><i class="bi bi-chat-square-text" aria-hidden="true"></i> ново</span> }</td>
+                        <td class="text-nowrap">@a.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>@a.Citizen!.FullName</td>
+                        <td>@a.Service!.Name</td>
+                        <td><span class="status @ApplicationStatuses.Css(a.Status)"><i class="bi @ApplicationStatuses.Icon(a.Status)" aria-hidden="true"></i>@ApplicationStatuses.Name(a.Status)</span></td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@a.Id">Отвори</a></td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-4">Няма заявления.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,11 @@
+@* Избор на тема: светла, тъмна или като устройството. Моделът е класът на бутона. *@
+@model string
+<button type="button" class="@Model theme-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Тема" aria-label="Тема">
+    <i class="bi bi-circle-half theme-icon" aria-hidden="true"></i><span class="theme-text">Тема</span>
+</button>
+<ul class="dropdown-menu dropdown-menu-end theme-menu">
+    <li><h2 class="dropdown-header">Тема</h2></li>
+    <li><button type="button" class="dropdown-item" data-theme-value="light" aria-pressed="false"><i class="bi bi-sun" aria-hidden="true"></i>Светла<i class="bi bi-check2 check" aria-hidden="true"></i></button></li>
+    <li><button type="button" class="dropdown-item" data-theme-value="dark" aria-pressed="false"><i class="bi bi-moon-stars" aria-hidden="true"></i>Тъмна<i class="bi bi-check2 check" aria-hidden="true"></i></button></li>
+    <li><button type="button" class="dropdown-item" data-theme-value="auto" aria-pressed="false"><i class="bi bi-circle-half" aria-hidden="true"></i>Като устройството<i class="bi bi-check2 check" aria-hidden="true"></i></button></li>
+</ul>

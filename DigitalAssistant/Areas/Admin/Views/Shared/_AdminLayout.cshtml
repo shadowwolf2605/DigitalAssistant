@@ -1,0 +1,194 @@
+@inject DigitalAssistant.Data.AppDbContext Db
+@inject DigitalAssistant.Services.SiteUrls Urls
+@{
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    var me = signedIn ? Db.AdminUsers.FirstOrDefault(a => a.Username == User.Identity!.Name) : null;
+    // Служителят на друга институция вижда само служебните справки до нея
+    var institutionStaff = me?.InstitutionId != null;
+    var newQuestions = signedIn && !institutionStaff ? Db.Questions.Count(q => q.FoundCount == 0 && !q.Reviewed) : 0;
+    var newApplications = signedIn && !institutionStaff ? Db.Applications.Count(a => a.Status == ApplicationStatus.Submitted) : 0;
+    var newMessages = signedIn && !institutionStaff ? DigitalAssistant.Services.UnreadMessages.ForStaff(Db).Count() : 0;
+    var newInfoRequests = me != null ? DigitalAssistant.Services.InfoRequests.ForStaff(Db, me).Count(r => r.AnsweredAt == null) : 0;
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+    string Active(string c) => controller == c ? "active" : "";
+    var helpUrl = Url.Action("Index", "Help", new { area = "Admin" }) + "#" + (ViewData["Help"] ?? "admin-vhod");
+    // Инициали за кръгчето с потребителя
+    var displayName = me?.FullName is { Length: > 0 } n ? n : User.Identity?.Name ?? "";
+    var initials = string.Concat(displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])));
+    var role = me?.IsMain == true ? "Главен администратор" : institutionStaff ? "Служител · " + Db.Institutions.Where(i => i.Id == me!.InstitutionId).Select(i => i.Name).FirstOrDefault() : "Служител";
+    var roleText = role == displayName ? "потребител " + User.Identity?.Name : role + " · " + User.Identity?.Name;
+}
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <partial name="_ThemeHead" />
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <title>@ViewData["Title"] – Администрация</title>
+    <script>document.documentElement.classList.add('js');</script>
+    @* Страница, показана отново след изпращане на формуляр (напр. с грешки), се показва веднага, без анимация *@
+    @if (Context.Request.Method == "POST")
+    {
+        <script>
+            document.documentElement.classList.add('no-anim');
+            window.addEventListener('pagereveal', e => e.viewTransition && e.viewTransition.skipTransition());
+        </script>
+    }
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="admin-body">
+@if (!signedIn)
+{
+    <div class="page-progress" id="pageProgress" aria-hidden="true"></div>
+    <div class="login-split">
+        <aside class="login-aside" aria-hidden="true">
+            <div class="brand">
+                <span class="logo-mark"><i class="bi bi-signpost-2-fill"></i></span>
+                <span>Дигитален помощник<small>Административен информационен център · Русе</small></span>
+            </div>
+            <div>
+                <h2>Работното място на служителите на центъра</h2>
+                <p>Обработвайте онлайн заявления, отговаряйте на гражданите и поддържайте данните за услугите на едно място.</p>
+                <ul class="login-features">
+                    <li><i class="bi bi-inboxes"></i><span><strong>Онлайн заявления</strong>Статуси, съобщения и файлове към гражданите.</span></li>
+                    <li><i class="bi bi-clock-history"></i><span><strong>Насрочени отговори</strong>Изпращане в избран от вас ден и час.</span></li>
+                    <li><i class="bi bi-bar-chart"></i><span><strong>Справки</strong>Най-търсени услуги и въпроси без отговор.</span></li>
+                </ul>
+            </div>
+            <div class="foot"><i class="bi bi-shield-lock me-1"></i>Достъпно само от мрежата на центъра</div>
+        </aside>
+        <main class="login-main">
+            <div class="dropdown theme-switch login-theme"><partial name="_ThemeSwitch" model="@("icon-btn")" /></div>
+            <div class="login-mobile-brand">
+                <span class="logo-mark"><i class="bi bi-signpost-2-fill" aria-hidden="true"></i></span> Дигитален помощник
+            </div>
+            @if (TempData["Success"] is string loginMessage) { <div class="alert alert-success">@loginMessage</div> }
+            @RenderBody()
+        </main>
+    </div>
+}
+else
+{
+    <a class="skip-link" href="#main">Към съдържанието</a>
+    <div class="page-progress" id="pageProgress" aria-hidden="true"></div>
+    <div class="admin-shell">
+        <aside class="admin-sidebar" id="adminSidebar">
+            <a class="brand" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">
+                <span class="logo-mark"><i class="bi bi-signpost-2-fill" aria-hidden="true"></i></span>
+                <span>Администрация<small>Дигитален помощник</small></span>
+            </a>
+            <nav class="d-grid gap-1" aria-label="Меню на администратора">
+                @if (!institutionStaff)
+                {
+                <a class="nav-link @Active("Dashboard")" asp-area="Admin" asp-controller="Dashboard" asp-action="Index"><i class="bi bi-speedometer2" aria-hidden="true"></i>Табло</a>
+                <a class="nav-link @Active("Applications")" asp-area="Admin" asp-controller="Applications" asp-action="Index">
+                    <i class="bi bi-inboxes" aria-hidden="true"></i>Заявления
+                    @if (newApplications > 0) { <span class="badge rounded-pill bg-primary" title="Нови заявления">@newApplications</span> }
+                    @if (newMessages > 0) { <span class="badge rounded-pill bg-danger" title="Нови съобщения от граждани"><i class="bi bi-chat-square-text" aria-hidden="true"></i> @newMessages</span> }
+                </a>
+                <a class="nav-link @Active("Questions")" asp-area="Admin" asp-controller="Questions" asp-action="Index">
+                    <i class="bi bi-question-circle" aria-hidden="true"></i>Въпроси без отговор
+                    @if (newQuestions > 0) { <span class="badge rounded-pill bg-danger" title="Нови въпроси">@newQuestions</span> }
+                </a>
+                }
+                <a class="nav-link @Active("InfoRequests")" asp-area="Admin" asp-controller="InfoRequests" asp-action="Index">
+                    <i class="bi bi-arrow-left-right" aria-hidden="true"></i>Служебни справки
+                    @if (newInfoRequests > 0) { <span class="badge rounded-pill bg-danger" title="Чакат отговор">@newInfoRequests</span> }
+                </a>
+                @if (!institutionStaff)
+                {
+                <div class="nav-label">Данни</div>
+                <a class="nav-link @Active("Services")" asp-area="Admin" asp-controller="Services" asp-action="Index"><i class="bi bi-grid" aria-hidden="true"></i>Услуги</a>
+                <a class="nav-link @Active("Categories")" asp-area="Admin" asp-controller="Categories" asp-action="Index"><i class="bi bi-tags" aria-hidden="true"></i>Категории</a>
+                <a class="nav-link @Active("Institutions")" asp-area="Admin" asp-controller="Institutions" asp-action="Index"><i class="bi bi-bank" aria-hidden="true"></i>Институции</a>
+                <a class="nav-link @Active("Reports")" asp-area="Admin" asp-controller="Reports" asp-action="Index"><i class="bi bi-bar-chart" aria-hidden="true"></i>Справки</a>
+                @if (me?.IsMain == true)
+                {
+                    <a class="nav-link @Active("Staff")" asp-area="Admin" asp-controller="Staff" asp-action="Index"><i class="bi bi-people" aria-hidden="true"></i>Служители</a>
+                }
+                }
+            </nav>
+            <div class="bottom d-grid gap-1">
+                <a class="nav-link @Active("Help")" href="@helpUrl"><i class="bi bi-life-preserver" aria-hidden="true"></i>Помощ</a>
+                <a class="nav-link" href="@Urls.PublicBase" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Сайтът за гражданите</a>
+                <a class="nav-link @(action == "ChangePassword" ? "active" : "")" asp-area="Admin" asp-controller="Account" asp-action="ChangePassword"><i class="bi bi-key" aria-hidden="true"></i>Смяна на парола</a>
+                <div class="admin-user">
+                    <span class="avatar" aria-hidden="true">@initials</span>
+                    <div class="who">
+                        <div class="name" title="@displayName">@displayName</div>
+                        <div class="role">@roleText</div>
+                    </div>
+                    <form asp-area="Admin" asp-controller="Account" asp-action="Logout" method="post" class="ms-auto">
+                        <button class="icon-btn" type="submit" title="Изход"><i class="bi bi-box-arrow-right" aria-hidden="true"></i><span class="visually-hidden">Изход</span></button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+        <div class="admin-main">
+            <header class="admin-top">
+                <button class="icon-btn" type="button" id="sidebarToggle" aria-controls="adminSidebar" aria-expanded="false" aria-label="Меню"><i class="bi bi-list" aria-hidden="true"></i></button>
+                <a class="top-brand" asp-area="Admin" asp-controller="Dashboard" asp-action="Index"><span class="logo-mark"><i class="bi bi-signpost-2-fill" aria-hidden="true"></i></span>Администрация</a>
+                @if (!institutionStaff)
+                {
+                <form class="top-search" method="get" asp-area="Admin" asp-controller="Applications" asp-action="Index" role="search">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input class="form-control" type="search" name="q" id="topSearch" placeholder="Търсене на заявление по номер, име или ЕГН" aria-label="Търсене на заявление" />
+                </form>
+                }
+                <div class="top-actions">
+                    <a class="icon-btn" href="@helpUrl" title="Помощ за тази страница"><i class="bi bi-question-circle" aria-hidden="true"></i><span class="visually-hidden">Помощ за тази страница</span></a>
+                    <a class="icon-btn" href="@Urls.PublicBase" target="_blank" rel="noopener" title="Сайтът за гражданите"><i class="bi bi-globe2" aria-hidden="true"></i><span class="visually-hidden">Сайтът за гражданите</span></a>
+                    <div class="dropdown theme-switch"><partial name="_ThemeSwitch" model="@("icon-btn")" /></div>
+                    <span class="avatar ms-1" title="@displayName" aria-hidden="true">@initials</span>
+                </div>
+            </header>
+            <main class="admin-content" id="main" tabindex="-1">
+                @if (TempData["Success"] is string message)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle me-1" aria-hidden="true"></i> @message
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Затвори"></button>
+                    </div>
+                }
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+}
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/loading.js" asp-append-version="true"></script>
+    <script src="~/js/theme.js" asp-append-version="true"></script>
+    <script>
+        // Меню на телефон: показва и скрива страничната лента
+        (function () {
+            const toggle = document.getElementById('sidebarToggle');
+            const bar = document.getElementById('adminSidebar');
+            if (!toggle || !bar) return;
+            const close = () => {
+                bar.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
+            };
+            toggle.addEventListener('click', e => {
+                e.stopPropagation();
+                const open = bar.classList.toggle('open');
+                toggle.setAttribute('aria-expanded', open);
+                if (open) (bar.querySelector('.nav-link.active') || bar.querySelector('a')).focus({ preventScroll: true });
+            });
+            document.addEventListener('click', e => {
+                if (bar.classList.contains('open') && !bar.contains(e.target)) close();
+            });
+            // Esc затваря менюто и връща фокуса на бутона
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape' && bar.classList.contains('open')) { close(); toggle.focus(); }
+            });
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

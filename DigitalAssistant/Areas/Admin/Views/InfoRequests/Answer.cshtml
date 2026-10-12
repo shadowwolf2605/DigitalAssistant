@@ -1,0 +1,49 @@
+@model InfoRequest
+@{
+    ViewData["Title"] = "Отговор на служебна справка";
+    ViewData["Help"] = "admin-spravki-institucii";
+    var app = Model.Application!;
+    var draft = TempData["AnswerDraft"] as string;
+}
+<nav aria-label="breadcrumb"><ol class="breadcrumb mb-2">
+    <li class="breadcrumb-item"><a asp-action="Index">Служебни справки</a></li>
+    <li class="breadcrumb-item active" aria-current="page">№ @app.Number</li>
+</ol></nav>
+<h1>Отговор на служебна справка</h1>
+@if (TempData["Error"] is string err) { <div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i> @err</div> }
+
+<div class="row g-4">
+    <div class="col-xl-7">
+        <div class="info-card">
+            <h2><i class="bi bi-question-lg" aria-hidden="true"></i>Какво се иска</h2>
+            <p class="fs-5">@Model.Question</p>
+            <div class="small text-muted">От @Model.FromInstitution, служител @Model.CreatedBy, на @Model.CreatedAt.ToString("dd.MM.yyyy HH:mm") · до @Model.ToInstitution!.Name</div>
+        </div>
+        <div class="info-card">
+            <h2><i class="bi bi-person-vcard" aria-hidden="true"></i>За кого е</h2>
+            <div class="row g-3">
+                <div class="col-md-6"><div class="text-muted small fw-semibold">Име</div>@app.Citizen!.FullName</div>
+                <div class="col-md-6"><div class="text-muted small fw-semibold">ЕГН</div>@ViewBag.Egn</div>
+                <div class="col-md-6"><div class="text-muted small fw-semibold">Заявление</div>№ @app.Number</div>
+                <div class="col-md-6"><div class="text-muted small fw-semibold">Услуга</div>@app.Service!.Name</div>
+            </div>
+            <p class="small text-muted mt-3 mb-0"><i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Виждате само данните, нужни да намерите човека. Отварянето на справката е записано в журнала.</p>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <form method="post" enctype="multipart/form-data" asp-action="Answer" asp-route-id="@Model.Id" class="aside-card">
+            <h2 class="h5 mb-3"><i class="bi bi-reply me-1" aria-hidden="true"></i> Вашият отговор</h2>
+            <div class="mb-3">
+                <label for="answer" class="form-label">Отговор</label>
+                <textarea id="answer" name="answer" class="form-control" rows="5" maxlength="2000" required
+                          placeholder="Например: Удостоверението е издадено, прилагаме го.">@draft</textarea>
+            </div>
+            <div class="mb-3">
+                <label for="file" class="form-label">Документ <span class="text-muted fw-normal">(по желание)</span></label>
+                <input type="file" id="file" name="file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                <div class="form-text">Един файл · .pdf, .jpg, .png, .doc, .docx · до 5 MB</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-send me-1" aria-hidden="true"></i> Изпрати отговора</button>
+        </form>
+    </div>
+</div>

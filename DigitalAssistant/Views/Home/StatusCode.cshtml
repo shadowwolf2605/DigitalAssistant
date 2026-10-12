@@ -1,0 +1,21 @@
+@{
+    int code = ViewBag.Code;
+    ViewData["Title"] = code == 404 ? "Страницата не е намерена" : code == 429 ? "Твърде много опити" : "Възникна грешка";
+}
+<section class="hero page-hero text-center" style="min-height: 72vh; display: flex; align-items: center;">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span>
+    <div class="container">
+        <div class="big-code grad-text anim" style="--i:0">@code</div>
+        <h1 class="anim" style="--i:1">@ViewData["Title"]</h1>
+        <p class="lead mx-auto anim" style="--i:2">@(code switch
+        {
+            404 => "Търсената страница или услуга не съществува или вече не е активна.",
+            429 => "Направени са много опити за кратко време. Изчакайте няколко минути и опитайте отново.",
+            _ => $"Код на грешката: {code}."
+        })</p>
+        <div class="d-flex flex-wrap justify-content-center gap-2 mt-4 anim" style="--i:3">
+            <a class="btn btn-primary btn-lg" asp-area="" asp-controller="Home" asp-action="Index"><i class="bi bi-house me-1" aria-hidden="true"></i> Към началната страница</a>
+            <a class="btn btn-light-glass btn-lg" asp-area="" asp-controller="Services" asp-action="Index">Всички услуги</a>
+        </div>
+    </div>
+</section>

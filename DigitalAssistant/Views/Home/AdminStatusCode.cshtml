@@ -1,0 +1,19 @@
+@{
+    Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+    int code = ViewBag.Code;
+    ViewData["Title"] = code == 404 ? "Страницата не е намерена" : code == 405 ? "Страницата не може да се отвори така" : "Възникна грешка";
+}
+<div class="card card-body text-center py-5" style="max-width: 640px; margin: 2rem auto;">
+    <div class="display-4 fw-bold grad-text">@code</div>
+    <h1 class="h3 mt-2">@ViewData["Title"]</h1>
+    <p class="text-muted">@(code switch
+    {
+        404 => "Записът не съществува или е премахнат.",
+        405 => "Тази страница се отваря само от бутон във формуляр. Върнете се назад и опитайте отново.",
+        _ => "Опитайте отново след малко."
+    })</p>
+    <div class="d-flex justify-content-center gap-2">
+        <a class="btn btn-primary" href="/Admin"><i class="bi bi-house me-1" aria-hidden="true"></i> Към таблото</a>
+        <a class="btn btn-outline-secondary" href="javascript:history.back()">Назад</a>
+    </div>
+</div>

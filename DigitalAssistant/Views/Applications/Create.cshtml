@@ -1,0 +1,165 @@
+@using DigitalAssistant.Controllers
+@using DigitalAssistant.Services
+@model ApplicationFormModel
+@{
+    var service = (Service)ViewBag.Service;
+    ViewData["Title"] = "Заявление – " + service.Name;
+    ViewData["Help"] = "zayavlenie";
+    var options = ApplicationsController.DeliveryOptions(service);
+    var documents = ServiceText.Documents(service.RequiredDocuments);
+    var official = ServiceText.Documents(service.OfficialDocuments);
+    var citizen = (Citizen)ViewBag.Citizen;
+}
+
+<section class="hero page-hero">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span>
+    <div class="container">
+        <nav aria-label="breadcrumb" class="anim" style="--i:0">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-controller="Services" asp-action="Index">Услуги</a></li>
+                <li class="breadcrumb-item"><a asp-controller="Services" asp-action="Details" asp-route-id="@service.Id">@service.Name</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Онлайн заявление</li>
+            </ol>
+        </nav>
+        <h1 class="anim" style="--i:1">Онлайн заявление</h1>
+        <p class="lead anim mb-0" style="--i:2">@service.Name · @service.Institution!.Name</p>
+    </div>
+</section>
+
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            @if (TempData["Success"] is string ok) { <div class="alert alert-success anim"><i class="bi bi-check-circle me-1" aria-hidden="true"></i> @ok</div> }
+            @if (TempData["Error"] is string err) { <div class="alert alert-danger anim"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i> @err</div> }
+            @if (!citizen.EmailConfirmed)
+            {
+                <div class="alert alert-warning anim d-flex flex-wrap align-items-center gap-2" id="confirmNotice">
+                    <i class="bi bi-envelope-exclamation fs-4" aria-hidden="true"></i>
+                    <div class="flex-grow-1">Преди да подадете заявление, потвърдете имейла си <strong>@citizen.Email</strong> от писмото, което ви изпратихме.</div>
+                    <form method="post" asp-controller="Account" asp-action="ResendConfirmation" class="d-inline">
+                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                        <button type="submit" class="btn btn-sm btn-outline-dark">Изпрати писмото отново</button>
+                    </form>
+                    <partial name="_DevMailLink" />
+                </div>
+            }
+            <form method="post" enctype="multipart/form-data" class="form-card anim-pop" novalidate id="applicationForm">
+                <input type="hidden" asp-for="ServiceId" />
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                <div class="applicant mb-4" id="applicant">
+                    <div class="d-flex justify-content-between align-items-baseline mb-2">
+                        <span class="fw-semibold"><i class="bi bi-person-vcard me-1" aria-hidden="true"></i> Заявител</span>
+                        <a class="small" asp-controller="Account" asp-action="Profile">Промени телефона</a>
+                    </div>
+                    <div class="row g-2 small">
+                        <div class="col-sm-6"><span class="text-muted">Име:</span> @citizen.FullName</div>
+                        <div class="col-sm-6"><span class="text-muted">ЕГН:</span> @ViewBag.EgnMasked</div>
+                        <div class="col-sm-6 text-break"><span class="text-muted">Имейл:</span> @citizen.Email</div>
+                        <div class="col-sm-6"><span class="text-muted">Телефон:</span> @citizen.Phone</div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="Details" class="form-label"></label>
+                    <textarea asp-for="Details" class="form-control" rows="4" maxlength="1000"
+                              placeholder="Например: Искам удостоверение за семейно положение за представяне в банка."></textarea>
+                    <span asp-validation-for="Details" class="small"></span>
+                </div>
+
+                <fieldset class="mb-4">
+                    <legend class="form-label fs-6">Как да получите резултата</legend>
+                    <div class="d-flex flex-wrap gap-3">
+                        @for (var i = 0; i < options.Count; i++)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="ResultDelivery" id="delivery-@i" value="@options[i]"
+                                       checked="@(Model.ResultDelivery == options[i])" />
+                                <label class="form-check-label" for="delivery-@i">@options[i]</label>
+                            </div>
+                        }
+                    </div>
+                    <span asp-validation-for="ResultDelivery" class="small"></span>
+                </fieldset>
+
+                @if (service.ExpressDeadlineDays != null || service.ExpressFee != null)
+                {
+                    <fieldset class="mb-4">
+                        <legend class="form-label fs-6">Колко бързо ви трябва</legend>
+                        <div class="d-flex flex-wrap gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="Express" id="speed-normal" value="false" checked="@(!Model.Express)" />
+                                <label class="form-check-label" for="speed-normal">Обикновена – @(service.Fee == 0 ? "безплатно" : service.Fee.ToString("0.00") + " €"), @WorkingDays.Text(service.DeadlineDays)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="Express" id="speed-express" value="true" checked="@Model.Express" />
+                                <label class="form-check-label" for="speed-express">Бърза – @((service.ExpressFee ?? service.Fee) == 0 ? "безплатно" : (service.ExpressFee ?? service.Fee).ToString("0.00") + " €"), @WorkingDays.Text(service.ExpressDeadlineDays ?? service.DeadlineDays)</label>
+                            </div>
+                        </div>
+                    </fieldset>
+                }
+
+                <div class="mb-4" id="addressBox">
+                    <label asp-for="DeliveryAddress" class="form-label"></label>
+                    <input asp-for="DeliveryAddress" class="form-control" placeholder="град, улица, номер, пощенски код" />
+                    <span asp-validation-for="DeliveryAddress" class="small"></span>
+                    <div class="small text-danger" id="addressError" role="alert"></div>
+                </div>
+
+                <div class="mb-4">
+                    <span class="form-label d-block">Документи <a class="small fw-normal ms-1 d-lg-none" href="#whatToAttach">какво да прикачите</a></span>
+                    <label class="drop-zone" id="dropZone">
+                        <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                        <strong>Изберете файлове или ги пуснете тук</strong>
+                        <span class="small text-muted">до @ApplicationFileRules.MaxFiles файла · .pdf, .jpg, .png, .doc, .docx · до 5 MB всеки</span>
+                        <input type="file" id="Files" name="Files" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                    </label>
+                    <ul class="file-list" id="fileList"></ul>
+                    <div class="small text-danger mt-1" id="fileError"></div>
+                    @foreach (var e in ViewData.ModelState["Files"]?.Errors ?? new())
+                    {
+                        <div class="field-validation-error small">@e.ErrorMessage</div>
+                    }
+                </div>
+
+                <p class="small text-muted"><i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Документите не са публични. Виждате ги само вие и служителите, които обработват заявлението.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-send me-1" aria-hidden="true"></i> Подай заявлението</button>
+                    <a class="btn btn-outline-secondary btn-lg" asp-controller="Services" asp-action="Details" asp-route-id="@service.Id">Откажи</a>
+                </div>
+            </form>
+        </div>
+        <div class="col-lg-4">
+            <aside class="aside-card anim-pop">
+                <div class="text-muted fw-semibold">Такса</div>
+                <div class="price my-1">@(service.Fee == 0 ? "безплатно" : service.Fee.ToString("0.00") + " €")</div>
+                @if (service.ExpressFee != null)
+                {
+                    <div class="small text-muted">бърза услуга: @service.ExpressFee.Value.ToString("0.00") €</div>
+                }
+                <div class="small text-muted mb-3">Плаща се на гишето или по банков път.</div>
+                <div class="fw-bold mb-2" id="whatToAttach">Какво да прикачите</div>
+                <ul class="check-list small">
+                    @foreach (var d in documents) { <li>@d</li> }
+                </ul>
+                @if (official.Count > 0)
+                {
+                    <div class="official-box mt-3 small">
+                        <div class="fw-semibold"><i class="bi bi-arrow-left-right me-1" aria-hidden="true"></i> Не е нужно да прикачвате</div>
+                        <ul class="mb-0">@foreach (var d in official) { <li>@d</li> }</ul>
+                        <div class="text-muted mt-1">Служителят ги взима служебно от другата институция.</div>
+                    </div>
+                }
+                @if (service.TemplateFileName != null)
+                {
+                    <a class="btn btn-outline-primary w-100 mt-3" asp-controller="Services" asp-action="Template" asp-route-id="@service.Id"><i class="bi bi-download me-1" aria-hidden="true"></i> Изтегли образец</a>
+                }
+            </aside>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/upload.js" asp-append-version="true"></script>
+}

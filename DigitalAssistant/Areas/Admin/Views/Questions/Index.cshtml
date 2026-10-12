@@ -1,0 +1,51 @@
+@inject DigitalAssistant.Services.AiAssistant Ai
+@model List<Question>
+@{
+    ViewData["Title"] = "Въпроси без отговор";
+    ViewData["Help"] = "admin-vaprosi";
+    bool all = ViewBag.All;
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Въпроси без отговор</h1>
+    <div class="btn-group">
+        <a class="btn btn-outline-secondary @(all ? "" : "active")" asp-action="Index">Нови</a>
+        <a class="btn btn-outline-secondary @(all ? "active" : "")" asp-action="Index" asp-route-all="true">Всички</a>
+    </div>
+</div>
+<p class="text-muted">Това са въпросите, на които помощникът не е намерил услуга по ключовите думи. Отворете въпрос, за да добавите ключови думи към подходяща услуга.</p>
+<div class="alert @(Ai.IsAvailable ? "alert-info" : "alert-secondary") py-2" id="aiStatus">
+    <i class="bi bi-stars me-1" aria-hidden="true"></i>
+    @if (Ai.IsAvailable) { <span>Изкуственият интелект е включен и отговаря на тези въпроси (модел @Ai.Model).</span> }
+    else
+    {
+        <span>Изкуственият интелект е изключен@(Ai.TurnedOff ? " от настройките" : ", защото няма ключ").
+            @(Ai.ClaudeLinkOn ? "Гражданите виждат бутона „Попитай Claude“, с който задават въпроса в claude.ai." : "Гражданите получават съобщение, че няма отговор.")
+            @(Ai.TurnedOff ? "" : "Как се добавя ключ – вижте README.md.")</span>
+    }
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>Дата и час</th><th>Въпрос</th><th>Отговор от ИИ</th><th>Статус</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var q in Model)
+                {
+                    <tr>
+                        <td class="text-nowrap">@q.AskedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-cell">@q.Text</td>
+                        <td class="small text-cell">@if (q.AnsweredByAi) { <span class="badge text-bg-primary me-1">ИИ</span>@(q.AiAnswer!.Length > 120 ? q.AiAnswer[..120] + "…" : q.AiAnswer) } else { <span class="text-muted">няма</span> }</td>
+                        <td>@(q.Reviewed ? "прегледан" : "нов")</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-primary" asp-action="Review" asp-route-id="@q.Id">Отвори</a>
+                        </td>
+                    </tr>
+                }
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="5" class="text-center text-muted py-4">Няма въпроси.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

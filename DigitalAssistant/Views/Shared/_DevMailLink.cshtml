@@ -1,0 +1,7 @@
+@inject IWebHostEnvironment Env
+@inject DigitalAssistant.Services.EmailService Email
+@* Само при тестване на компютъра: писмата не се изпращат, а се отварят от „Тестова поща“ *@
+@if (Env.IsDevelopment() && !Email.UsesSmtp)
+{
+    <a class="btn btn-sm btn-dark" href="/Dev/Mail" target="_blank"><i class="bi bi-inbox me-1" aria-hidden="true"></i>Тестова поща</a>
+}

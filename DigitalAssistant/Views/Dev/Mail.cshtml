@@ -1,0 +1,32 @@
+@model List<(string Name, string To, string Subject, DateTime At)>
+@{
+    ViewData["Title"] = "Тестова поща";
+}
+<section class="hero page-hero">
+    <span class="blob blob-1"></span><span class="blob blob-3"></span>
+    <div class="container">
+        <h1 class="anim" style="--i:0">Тестова поща</h1>
+        <p class="lead anim mb-0" style="--i:1">Писмата, които системата изпраща. Тази страница я има само при тестване на компютъра.
+            В истинската система писмата отиват по имейл (настройката „Email“ в appsettings.json).</p>
+    </div>
+</section>
+<div class="container py-4">
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="mailList">
+                <thead class="table-light"><tr><th>Дата и час</th><th>До</th><th>Тема</th></tr></thead>
+                <tbody>
+                    @foreach (var m in Model)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@m.At.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                            <td class="text-break">@m.To</td>
+                            <td><a href="/Dev/Mail/@m.Name" target="_blank">@m.Subject</a></td>
+                        </tr>
+                    }
+                    @if (Model.Count == 0) { <tr><td colspan="3" class="text-center text-muted py-4">Още няма писма.</td></tr> }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

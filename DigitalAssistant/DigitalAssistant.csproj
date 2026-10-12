@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Стартира се и ако на компютъра има само по-нов .NET (9 или 10) -->
+    <RollForward>Major</RollForward>
+    <!-- Ключът за изкуствения интелект се пази в User Secrets (десен бутон на проекта → Manage User Secrets) -->
+    <UserSecretsId>digital-assistant-ruse-2026</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.54.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" />
+    <PackageReference Include="NPOI" Version="2.7.2" />
+    <PackageReference Include="QuestPDF" Version="2024.12.3" />
+  </ItemGroup>
+
+</Project>

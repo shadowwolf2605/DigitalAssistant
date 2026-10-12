@@ -1,0 +1,51 @@
+@model ProfileModel
+@{
+    ViewData["Title"] = "Моят профил";
+    ViewData["Help"] = "profil";
+    Citizen c = ViewBag.Citizen;
+}
+<section class="hero page-hero">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span>
+    <div class="container">
+        <h1 class="anim" style="--i:0">Моят профил</h1>
+        <p class="lead anim mb-0" style="--i:1">Вашите данни. Те се използват само за обработка на заявленията ви.</p>
+    </div>
+</section>
+
+<div class="container py-4">
+    @if (TempData["Success"] is string ok) { <div class="alert alert-success anim"><i class="bi bi-check-circle me-1" aria-hidden="true"></i> @ok</div> }
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="info-card reveal">
+                <h2><i class="bi bi-person-vcard" aria-hidden="true"></i>Лични данни</h2>
+                <div class="row g-3">
+                    <div class="col-sm-6"><div class="text-muted small fw-semibold">Име и фамилия</div>@c.FullName</div>
+                    <div class="col-sm-6"><div class="text-muted small fw-semibold">ЕГН</div><span id="profileEgn">@ViewBag.EgnMasked</span></div>
+                    <div class="col-sm-6 text-break"><div class="text-muted small fw-semibold">Имейл</div>@c.Email
+                        @if (c.EmailConfirmed) { <span class="badge text-bg-success ms-1">потвърден</span> }
+                        else { <span class="badge text-bg-warning ms-1">не е потвърден</span> }
+                    </div>
+                    <div class="col-sm-6"><div class="text-muted small fw-semibold">Профил от</div>@c.CreatedAt.ToString("dd.MM.yyyy")</div>
+                </div>
+                <p class="small text-muted mt-3 mb-0">Името и ЕГН не могат да се сменят от сайта. Ако има грешка, обадете се в центъра.</p>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <form method="post" class="aside-card reveal" novalidate>
+                <h2 class="h5 mb-3"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i> Промяна на данните</h2>
+                <div class="mb-3">
+                    <label asp-for="Phone" class="form-label"></label>
+                    <input asp-for="Phone" class="form-control" type="tel" autocomplete="tel" />
+                    <span asp-validation-for="Phone" class="small"></span>
+                </div>
+                <div class="form-check mb-3">
+                    <input asp-for="EmailNotifications" class="form-check-input" />
+                    <label asp-for="EmailNotifications" class="form-check-label"></label>
+                </div>
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check2 me-1" aria-hidden="true"></i> Запази</button>
+                <a class="btn btn-outline-primary w-100 mt-2" asp-action="ChangePassword"><i class="bi bi-key me-1" aria-hidden="true"></i> Смяна на парола</a>
+            </form>
+        </div>
+    </div>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

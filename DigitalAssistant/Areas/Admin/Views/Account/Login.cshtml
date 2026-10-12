@@ -1,0 +1,30 @@
+@model LoginModel
+@{
+    ViewData["Title"] = "Вход за администратор";
+    ViewData["Help"] = "admin-vhod";
+}
+<div class="login-card anim-pop">
+    <div class="mb-4">
+        <span class="shield"><i class="bi bi-shield-lock" aria-hidden="true"></i></span>
+        <h1 class="h3 mb-1">Вход за администратор</h1>
+        <p class="text-muted mb-0">Въведете потребителското име и паролата, които сте получили от главния администратор.</p>
+    </div>
+    <form asp-action="Login" method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2" role="alert"></div>
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div class="mb-3">
+            <label asp-for="Username" class="form-label"></label>
+            <input asp-for="Username" class="form-control form-control-lg" autocomplete="username" autofocus />
+            <span asp-validation-for="Username" class="small"></span>
+        </div>
+        <div class="mb-4">
+            <label asp-for="Password" class="form-label"></label>
+            <input asp-for="Password" class="form-control form-control-lg" autocomplete="current-password" />
+            <span asp-validation-for="Password" class="small"></span>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg w-100"><i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i> Вход</button>
+    </form>
+    <p class="small text-muted mt-4 mb-0"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+        Тази страница се отваря само от мрежата на центъра. Ако сте забравили паролата си, обърнете се към главния администратор.</p>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

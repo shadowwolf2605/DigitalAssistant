@@ -1,0 +1,18 @@
+@model object
+@{
+    var controller = ViewContext.RouteData.Values["controller"]!.ToString();
+    var isCategory = controller == "Categories";
+    ViewData["Title"] = isCategory ? "Промяна на категория" : "Промяна на институция";
+    ViewData["Help"] = "admin-uslugi";
+    var (id, name) = Model is Category c ? (c.Id, c.Name) : (((Institution)Model).Id, ((Institution)Model).Name);
+}
+<h1>@ViewData["Title"]</h1>
+<form asp-controller="@controller" asp-action="Edit" asp-route-id="@id" method="post" class="card card-body shadow-sm" style="max-width: 600px">
+    <div asp-validation-summary="All" class="alert alert-danger py-2"></div>
+    <label for="Name" class="form-label">Име</label>
+    <input id="Name" name="Name" value="@name" class="form-control mb-3" maxlength="@(isCategory ? 100 : 150)" required />
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" type="submit">Запази</button>
+        <a class="btn btn-outline-secondary" asp-controller="@controller" asp-action="Index">Отказ</a>
+    </div>
+</form>

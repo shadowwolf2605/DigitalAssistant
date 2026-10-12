@@ -1,0 +1,68 @@
+@model RegisterModel
+@{
+    ViewData["Title"] = "Регистрация";
+    ViewData["Help"] = "registracia";
+}
+
+<section class="hero page-hero pb-5">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span>
+    <div class="container text-center pb-5">
+        <h1 class="anim" style="--i:0">Регистрация</h1>
+        <p class="lead anim mx-auto" style="--i:1">С профил можете да подавате заявления онлайн и да следите какво става с тях.</p>
+    </div>
+</section>
+
+<div class="container">
+    <div class="auth-wrap anim-pop">
+        <form method="post" class="form-card" novalidate>
+            <input type="hidden" asp-for="ReturnUrl" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+            <div class="row g-3 mb-3">
+                <div class="col-sm-7">
+                    <label asp-for="FullName" class="form-label"></label>
+                    <input asp-for="FullName" class="form-control" autocomplete="name" />
+                    <span asp-validation-for="FullName" class="small"></span>
+                </div>
+                <div class="col-sm-5">
+                    <label asp-for="Egn" class="form-label"></label>
+                    <input asp-for="Egn" class="form-control" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10 цифри" />
+                    <span asp-validation-for="Egn" class="small"></span>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-sm-7">
+                    <label asp-for="Email" class="form-label"></label>
+                    <input asp-for="Email" class="form-control" type="email" autocomplete="email" />
+                    <span asp-validation-for="Email" class="small"></span>
+                </div>
+                <div class="col-sm-5">
+                    <label asp-for="Phone" class="form-label"></label>
+                    <input asp-for="Phone" class="form-control" type="tel" autocomplete="tel" placeholder="0888 123 456" />
+                    <span asp-validation-for="Phone" class="small"></span>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                    <label asp-for="Password" class="form-label"></label>
+                    <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="Password" class="small"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="ConfirmPassword" class="form-label"></label>
+                    <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="ConfirmPassword" class="small"></span>
+                </div>
+            </div>
+            <div class="form-check mb-1">
+                <input asp-for="Consent" class="form-check-input" />
+                <label asp-for="Consent" class="form-check-label"></label>
+            </div>
+            <span asp-validation-for="Consent" class="small d-block mb-2"></span>
+            <p class="small text-muted">Данните ви се пазят в системата и ги виждат само вие и служителите, които обработват заявленията. ЕГН се пази шифровано и е нужно, за да се издадат документите на ваше име.</p>
+            <button type="submit" class="btn btn-primary btn-lg w-100"><i class="bi bi-person-plus me-1" aria-hidden="true"></i> Създай профил</button>
+            <p class="text-center mt-3 mb-0">Вече имате профил? <a asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl">Вход</a></p>
+        </form>
+    </div>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

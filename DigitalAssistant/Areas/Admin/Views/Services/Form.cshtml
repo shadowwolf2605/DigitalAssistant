@@ -1,0 +1,159 @@
+@model ServiceFormModel
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = isNew ? "Добавяне на услуга" : "Промяна на услуга";
+    ViewData["Help"] = "admin-uslugi";
+}
+<h1>@ViewData["Title"]</h1>
+@if (!isNew && ViewBag.IsActive == false)
+{
+    <div class="alert alert-secondary">Тази услуга е неактивна и не се вижда от гражданите.</div>
+}
+
+<form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@(isNew ? null : Model.Id)" method="post" enctype="multipart/form-data"
+      class="card card-body shadow-sm">
+    <div asp-validation-summary="All" class="alert alert-danger py-2" role="alert"></div>
+    <input type="hidden" asp-for="Id" />
+
+    <div class="row g-3">
+        <div class="col-md-8">
+            <label asp-for="Name" class="form-label"></label> <span class="text-danger">*</span>
+            <input asp-for="Name" class="form-control" />
+            <span asp-validation-for="Name" class="small"></span>
+        </div>
+        <div class="col-md-4"></div>
+
+        <div class="col-md-6">
+            <label asp-for="CategoryId" class="form-label"></label> <span class="text-danger">*</span>
+            <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select"><option value="">-- изберете --</option></select>
+            <span asp-validation-for="CategoryId" class="small"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="InstitutionId" class="form-label"></label> <span class="text-danger">*</span>
+            <select asp-for="InstitutionId" asp-items="ViewBag.Institutions" class="form-select"><option value="">-- изберете --</option></select>
+            <span asp-validation-for="InstitutionId" class="small"></span>
+        </div>
+
+        <div class="col-12">
+            <label asp-for="Description" class="form-label"></label>
+            <textarea asp-for="Description" class="form-control" rows="2"></textarea>
+            <span asp-validation-for="Description" class="small"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="RequiredDocuments" class="form-label"></label> <span class="text-danger">*</span>
+            <textarea asp-for="RequiredDocuments" class="form-control" rows="3" aria-describedby="docsHelp"></textarea>
+            <div class="form-text" id="docsHelp">Всеки документ на нов ред или разделен с „;“.</div>
+            <span asp-validation-for="RequiredDocuments" class="small"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Steps" class="form-label"></label>
+            <textarea asp-for="Steps" class="form-control" rows="3" aria-describedby="stepsHelp"></textarea>
+            <div class="form-text" id="stepsHelp">Всяка стъпка на нов ред или номерирани: „1. … 2. …“.</div>
+            <span asp-validation-for="Steps" class="small"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="OfficialDocuments" class="form-label"></label>
+            <textarea asp-for="OfficialDocuments" class="form-control" rows="2" aria-describedby="officialHelp" placeholder="напр. удостоверение за раждане (от общината)"></textarea>
+            <div class="form-text" id="officialHelp">Документи от друга институция, които служителят взима сам чрез „Служебни справки“. Гражданинът не ги носи.</div>
+            <span asp-validation-for="OfficialDocuments" class="small"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="Question" class="form-label"></label>
+            <input asp-for="Question" class="form-control" aria-describedby="questionHelp" placeholder="напр. Защо вадите нова лична карта?" />
+            <div class="form-text" id="questionHelp">По желание. Помощникът го задава след избора на услугата, ако от отговора зависят документите.</div>
+            <span asp-validation-for="Question" class="small"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="QuestionOptions" class="form-label"></label>
+            <textarea asp-for="QuestionOptions" class="form-control" rows="3" aria-describedby="optionsHelp" placeholder="Изгубена или открадната | декларация за загуба | Първо съобщете в полицията."></textarea>
+            <div class="form-text" id="optionsHelp">Всеки отговор на нов ред: <code>отговор | още документи (с „;“) | бележка</code>. Документите и бележката може да липсват.</div>
+            <span asp-validation-for="QuestionOptions" class="small"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="Address" class="form-label"></label> <span class="text-danger">*</span>
+            <input asp-for="Address" class="form-control" />
+            <span asp-validation-for="Address" class="small"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="PlaceSearch" class="form-label"></label>
+            <input asp-for="PlaceSearch" class="form-control" aria-describedby="placeHelp" placeholder="напр. Сектор Пътна полиция" />
+            <div class="form-text" id="placeHelp">Помощникът го търси в картата близо до човека. Оставете празно, ако услугата не се заявява на място.</div>
+            <span asp-validation-for="PlaceSearch" class="small"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="WorkingHours" class="form-label"></label>
+            <input asp-for="WorkingHours" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Phone" class="form-label"></label>
+            <input asp-for="Phone" class="form-control" />
+        </div>
+
+        <div class="col-md-3">
+            <label asp-for="Fee" class="form-label"></label> <span class="text-danger">*</span>
+            <input asp-for="Fee" class="form-control" type="number" step="0.01" min="0" />
+            <span asp-validation-for="Fee" class="small"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="ExpressFee" class="form-label"></label>
+            <input asp-for="ExpressFee" class="form-control" type="number" step="0.01" min="0" />
+            <span asp-validation-for="ExpressFee" class="small"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="DeadlineDays" class="form-label"></label> <span class="text-danger">*</span>
+            <input asp-for="DeadlineDays" class="form-control" type="number" step="1" min="1" />
+            <span asp-validation-for="DeadlineDays" class="small"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="ExpressDeadlineDays" class="form-label"></label>
+            <input asp-for="ExpressDeadlineDays" class="form-control" type="number" step="1" min="1" />
+            <span asp-validation-for="ExpressDeadlineDays" class="small"></span>
+        </div>
+
+        <div class="col-md-6">
+            <span class="form-label d-block">Начин на получаване на резултата <span class="text-danger">*</span></span>
+            @foreach (var option in ServiceFormModel.DeliveryOptions)
+            {
+                var id = "delivery-" + Array.IndexOf(ServiceFormModel.DeliveryOptions, option);
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="ResultDelivery" value="@option" id="@id" checked="@Model.ResultDelivery.Contains(option)" />
+                    <label class="form-check-label" for="@id">@option</label>
+                </div>
+            }
+            <span asp-validation-for="ResultDelivery" class="small d-block"></span>
+            <div class="form-check form-switch mt-2">
+                <input asp-for="AllowOnline" class="form-check-input" role="switch" />
+                <label asp-for="AllowOnline" class="form-check-label"></label>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Keywords" class="form-label"></label> <span class="text-danger">*</span>
+            <input asp-for="Keywords" class="form-control" placeholder="напр. лична карта, лк, документ за самоличност" />
+            <span asp-validation-for="Keywords" class="small"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="TemplateUpload" class="form-label"></label>
+            <input asp-for="TemplateUpload" type="file" class="form-control" accept=".pdf,.doc" />
+            <span asp-validation-for="TemplateUpload" class="small"></span>
+            @if (Model.ExistingTemplateName != null)
+            {
+                <div class="form-text">Сегашен образец: @Model.ExistingTemplateName</div>
+                <div class="form-check mt-1">
+                    <input asp-for="RemoveTemplate" class="form-check-input" />
+                    <label asp-for="RemoveTemplate" class="form-check-label"></label>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button class="btn btn-primary" type="submit">Запази</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">Отказ</a>
+    </div>
+    <p class="small text-muted mt-2 mb-0"><span class="text-danger">*</span> задължително поле</p>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

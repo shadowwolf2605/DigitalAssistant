@@ -1,0 +1,174 @@
+@using DigitalAssistant.Models
+@using DigitalAssistant.Services
+@model GuideViewModel
+@{
+    string Link(Dictionary<string, string> route) =>
+        Url.Action("Index", "Assistant", new RouteValueDictionary(route.ToDictionary(k => k.Key, k => (object?)k.Value)))!;
+    var st = Model.State;
+    var percent = Model.Step == GuideStep.Guide ? 100 : Math.Max(8, (Model.Number - 1) * 100 / Math.Max(1, Model.Total));
+}
+<div class="guide-card" data-guide-step="@Model.Step.ToString().ToLowerInvariant()"
+     data-title="@(Model.Step == GuideStep.Guide ? "Упътване: " + Model.Service!.Name : "Дигитален помощник") – Дигитален помощник за административни услуги">
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-warning" role="alert">@error</div>
+    }
+    <div class="guide-top">
+        @if (Model.Back != null)
+        {
+            var backUrl = Model.Back.Count == 0 ? Url.Action("Index", "Assistant")! :
+                Model.Back.ContainsKey("again") ? Url.Action("Search", "Assistant", new RouteValueDictionary(Model.Back.ToDictionary(k => k.Key, k => (object?)k.Value)))! : Link(Model.Back);
+            <a class="guide-back" href="@backUrl" data-guide><i class="bi bi-arrow-left" aria-hidden="true"></i> Назад</a>
+        }
+        else
+        {
+            <span></span>
+        }
+        <span class="guide-count">
+            @if (Model.Step == GuideStep.Guide) { <text><i class="bi bi-check2-circle" aria-hidden="true"></i> Готово</text> }
+            else { <text>Въпрос @Model.Number от @Model.Total</text> }
+        </span>
+    </div>
+    <div class="guide-progress" role="progressbar" aria-label="Напредък" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@percent"><span style="width:@percent%"></span></div>
+
+    @if (Model.Step != GuideStep.Guide)
+    {
+        <div class="guide-body">
+            @if (Model.Service != null && Model.Step != GuideStep.Search)
+            {
+                <div class="guide-context"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>@Model.Service.Name</div>
+            }
+            <h2 class="guide-q" tabindex="-1">@Model.Question</h2>
+            @if (!string.IsNullOrEmpty(Model.Hint) && Model.Hint != Model.Service?.Name)
+            {
+                <p class="guide-hint">@Model.Hint</p>
+            }
+            @if (Model.Error != null && Model.Step is GuideStep.Location or GuideStep.Search)
+            {
+                <div class="alert alert-warning py-2" role="alert">@Model.Error</div>
+            }
+
+            @if (Model.Step == GuideStep.Search && Model.AiAnswer != null)
+            {
+                <div class="guide-ai">
+                    <div class="guide-ai-label"><i class="bi bi-stars" aria-hidden="true"></i> Отговор от изкуствен интелект</div>
+                    <p class="mb-1" style="white-space: pre-line">@Model.AiAnswer</p>
+                    <div class="small text-muted">Отговорът е от изкуствен интелект и може да има грешки. Проверете таксата и срока в институцията.</div>
+                </div>
+            }
+
+            @if (Model.Options.Count > 0)
+            {
+                <div class="opt-grid @(Model.Step == GuideStep.Category ? "opt-grid-3" : "")">
+                    @for (int i = 0; i < Model.Options.Count; i++)
+                    {
+                        var o = Model.Options[i];
+                        <a class="opt" href="@Link(o.Route)" data-guide style="--i:@i" data-tone="@o.Tone">
+                            <span class="opt-ico @o.Tone"><i class="bi @o.Icon" aria-hidden="true"></i></span>
+                            <span class="opt-text">
+                                <span class="opt-title">@o.Title</span>
+                                @if (!string.IsNullOrEmpty(o.Text)) { <span class="opt-sub">@o.Text</span> }
+                                @if (o.Badges.Count > 0)
+                                {
+                                    <span class="opt-badges">@foreach (var b in o.Badges) { <span>@b</span> }</span>
+                                }
+                            </span>
+                            <i class="bi bi-chevron-right opt-arrow" aria-hidden="true"></i>
+                        </a>
+                    }
+                </div>
+            }
+
+            @if (Model.Step == GuideStep.Documents)
+            {
+                <form method="get" asp-controller="Assistant" asp-action="Index" data-guide class="guide-form">
+                    @foreach (var kv in st.Route("d", "h")) { <input type="hidden" name="@kv.Key" value="@kv.Value" /> }
+                    <input type="hidden" name="d" value="true" />
+                    <div class="doc-checks">
+                        @for (int i = 0; i < Model.Documents.Count; i++)
+                        {
+                            <label class="doc-check">
+                                <input type="checkbox" name="have" value="@i" checked="@st.HaveSet.Contains(i)" />
+                                <span class="box" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+                                <span>@Model.Documents[i]</span>
+                            </label>
+                        }
+                    </div>
+                    @{ var official = ServiceText.Documents(Model.Service!.OfficialDocuments); }
+                    @if (official.Count > 0)
+                    {
+                        <div class="official-box mt-3">
+                            <div class="fw-semibold"><i class="bi bi-arrow-left-right me-1" aria-hidden="true"></i> Тези не е нужно да ги носите</div>
+                            <ul class="mb-1">@foreach (var d in official) { <li>@d</li> }</ul>
+                            <div class="small text-muted">Служителят ги взима служебно от другата институция през системата. Така не обикаляте гишета.</div>
+                        </div>
+                    }
+                    <button type="submit" class="btn btn-primary btn-lg mt-3">Продължи <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></button>
+                </form>
+            }
+
+            @if (Model.Step == GuideStep.Location)
+            {
+                var cities = GuideCities.All;
+                <div class="loc-box">
+                    <button type="button" class="btn btn-primary btn-lg loc-geo d-none" id="useLocation">
+                        <i class="bi bi-crosshair me-1" aria-hidden="true"></i> Използвай моето местоположение
+                    </button>
+                    <div class="small text-muted loc-geo-note d-none" id="geoNote">Браузърът ще ви попита дали разрешавате. Точното място не се пази.</div>
+                    <div class="loc-or d-none" id="locOr"><span>или</span></div>
+                    <form method="get" asp-controller="Assistant" asp-action="Index" data-guide class="guide-form" id="locForm">
+                        @foreach (var kv in st.Route("loc")) { <input type="hidden" name="@kv.Key" value="@kv.Value" /> }
+                        <input type="hidden" name="lat" id="locLat" disabled />
+                        <input type="hidden" name="lng" id="locLng" disabled />
+                        <label for="city" class="form-label fw-semibold">Населено място</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <input id="city" name="city" class="form-control form-control-lg loc-input" list="cityList" maxlength="60"
+                                   placeholder="напр. Пловдив" autocomplete="address-level2" value="@st.City" required />
+                            <button type="submit" class="btn btn-outline-primary btn-lg">Продължи</button>
+                        </div>
+                        <datalist id="cityList">
+                            @foreach (var c in cities) { <option value="@c.Name"></option> }
+                        </datalist>
+                        <div class="loc-quick">
+                            @foreach (var name in new[] { "София", "Пловдив", "Варна", "Бургас", "Русе", "Стара Загора", "Плевен" })
+                            {
+                                var r = st.Route("loc");
+                                r["city"] = name;
+                                <a class="chip" href="@Link(r)" data-guide>@name</a>
+                            }
+                        </div>
+                    </form>
+                </div>
+            }
+
+            @if (Model.Step is GuideStep.Category or GuideStep.Search)
+            {
+                <form method="get" asp-controller="Assistant" asp-action="Search" data-guide class="guide-search" role="search">
+                    <label for="q" class="form-label small text-muted mb-1">@(Model.Step == GuideStep.Category ? "Знаете името на услугата? Потърсете я с няколко думи:" : "Потърсете с други думи:")</label>
+                    <div class="input-group">
+                        <input id="q" name="q" class="form-control" maxlength="300" value="@st.Q" placeholder="напр. шофьорска книжка" required />
+                        <button class="btn btn-outline-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Търси</span></button>
+                    </div>
+                </form>
+                @if (Model.Step == GuideStep.Search)
+                {
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <a class="btn btn-light-glass" asp-controller="Assistant" asp-action="Index" data-guide><i class="bi bi-grid me-1" aria-hidden="true"></i> Изберете тема</a>
+                        @if (Model.ClaudeUrl != null)
+                        {
+                            <a class="btn btn-light-glass ask-claude" href="@Model.ClaudeUrl" target="_blank" rel="noopener" data-question="@st.Q"><i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i> Попитай Claude</a>
+                        }
+                    </div>
+                    @if (Model.ClaudeUrl != null)
+                    {
+                        <p class="small text-muted mt-2 mb-0">„Попитай Claude“ отваря claude.ai в нов прозорец. Нужен е безплатен профил там. Отговорът не е от центъра и може да има грешки. Въпросът се копира и ако не се появи сам, поставете го с Ctrl+V.</p>
+                    }
+                }
+            }
+        </div>
+    }
+    else
+    {
+        <partial name="_GuideResult" model="Model" />
+    }
+</div>

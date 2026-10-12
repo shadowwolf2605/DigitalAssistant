@@ -1,0 +1,38 @@
+@model object
+@{
+    var controller = ViewContext.RouteData.Values["controller"]!.ToString();
+    var isCategory = controller == "Categories";
+    ViewData["Title"] = isCategory ? "Категории" : "Институции";
+    ViewData["Help"] = "admin-uslugi";
+    var items = (List<DigitalAssistant.Areas.Admin.Controllers.ItemRow>)ViewBag.Items;
+    var name = Model is Category c ? c.Name : ((Institution)Model).Name;
+}
+<h1>@ViewData["Title"]</h1>
+
+<form asp-controller="@controller" asp-action="Create" method="post" class="card card-body shadow-sm mb-3">
+    <div asp-validation-summary="All" class="alert alert-danger py-2"></div>
+    <label for="Name" class="form-label">@(isCategory ? "Нова категория" : "Нова институция")</label>
+    <div class="input-group">
+        <input id="Name" name="Name" value="@name" class="form-control" maxlength="@(isCategory ? 100 : 150)" required />
+        <button class="btn btn-primary" type="submit">Добави</button>
+    </div>
+</form>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>Име</th><th>Активни услуги</th><th>Всички услуги</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var item in items)
+                {
+                    <tr>
+                        <td>@item.Name</td>
+                        <td>@item.ActiveServices</td>
+                        <td>@item.AllServices</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-controller="@controller" asp-action="Edit" asp-route-id="@item.Id">Промени</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

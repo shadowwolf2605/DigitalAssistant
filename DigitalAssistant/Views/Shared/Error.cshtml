@@ -1,0 +1,17 @@
+@model DigitalAssistant.Models.ErrorViewModel
+@{
+    ViewData["Title"] = "Грешка";
+}
+<section class="hero page-hero text-center" style="min-height: 72vh; display: flex; align-items: center;">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span>
+    <div class="container">
+        <div class="big-code grad-text"><i class="bi bi-emoji-frown" aria-hidden="true"></i></div>
+        <h1>Възникна грешка</h1>
+        <p class="lead mx-auto">Моля, опитайте отново. Ако грешката продължава, свържете се с администратора.</p>
+        @if (Model.ShowRequestId)
+        {
+            <p class="small">Код на заявката: <code>@Model.RequestId</code></p>
+        }
+        <a class="btn btn-primary btn-lg mt-3" asp-area="" asp-controller="Home" asp-action="Index">Към началната страница</a>
+    </div>
+</section>

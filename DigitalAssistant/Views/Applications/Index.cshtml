@@ -1,0 +1,69 @@
+@model List<Application>
+@{
+    ViewData["Title"] = "Моите заявления";
+    ViewData["Help"] = "zayavlenie";
+    bool confirmed = ViewBag.EmailConfirmed;
+    // Последното съобщение от служителя и дали е ново
+    ApplicationEvent? LastStaff(Application a) => a.Events.Where(e => !e.ByCitizen && !string.IsNullOrWhiteSpace(e.Comment)).OrderByDescending(e => e.At).FirstOrDefault();
+    bool HasNew(Application a) => a.Events.Any(e => !e.ByCitizen && (a.CitizenSeenAt == null || e.At > a.CitizenSeenAt));
+    int newCount = Model.Count(HasNew);
+}
+
+<section class="hero page-hero">
+    <span class="blob blob-1"></span><span class="blob blob-2"></span>
+    <div class="container">
+        <h1 class="anim" style="--i:0">Моите заявления</h1>
+        <p class="lead anim mb-0" style="--i:1">Тук виждате подадените заявления, статуса им и съобщенията от служителя.</p>
+    </div>
+</section>
+
+<div class="container py-4">
+    @if (TempData["Success"] is string ok) { <div class="alert alert-success anim"><i class="bi bi-check-circle me-1" aria-hidden="true"></i> @ok</div> }
+    @if (!confirmed)
+    {
+        <div class="alert alert-warning anim d-flex flex-wrap align-items-center gap-2" id="confirmNotice">
+            <i class="bi bi-envelope-exclamation fs-4" aria-hidden="true"></i>
+            <div class="flex-grow-1">Потвърдете имейла си <strong>@ViewBag.Email</strong> от писмото, което ви изпратихме. Без това не можете да подавате заявления.</div>
+            <form method="post" asp-controller="Account" asp-action="ResendConfirmation" class="d-inline">
+                <input type="hidden" name="returnUrl" value="/Applications" />
+                <button type="submit" class="btn btn-sm btn-outline-dark">Изпрати писмото отново</button>
+            </form>
+            <partial name="_DevMailLink" />
+        </div>
+    }
+    @if (newCount > 0)
+    {
+        <div class="alert alert-info anim" id="newMessagesNotice"><i class="bi bi-bell-fill me-1" aria-hidden="true"></i>
+            Имате @(newCount == 1 ? "ново съобщение" : "нови съобщения") от служителя по @newCount @(newCount == 1 ? "заявление" : "заявления").</div>
+    }
+
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state reveal">
+            <i class="bi bi-inbox" aria-hidden="true"></i>
+            <h2 class="h4 mt-3">Още нямате заявления</h2>
+            <p class="text-muted">Изберете услуга и натиснете „Подай заявление онлайн“.</p>
+            <a class="btn btn-primary" asp-controller="Services" asp-action="Index"><i class="bi bi-grid me-1" aria-hidden="true"></i> Към услугите</a>
+        </div>
+    }
+    else
+    {
+        <div class="d-grid gap-3" data-stagger>
+            @foreach (var a in Model)
+            {
+                var last = LastStaff(a);
+                <a class="app-tile reveal @(HasNew(a) ? "has-new" : "")" asp-action="Details" asp-route-id="@a.Id">
+                    <span class="cat-icon @CategoryStyle.Tone(a.ServiceId)"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span>
+                    <span>
+                        <span class="num">№ @a.Number</span> · <span class="svc">@a.Service!.Name</span>
+                        @if (HasNew(a)) { <span class="badge text-bg-danger ms-1">Ново съобщение</span> }
+                        <span class="d-block when">Подадено на @a.CreatedAt.ToString("dd.MM.yyyy HH:mm") · последна промяна @a.UpdatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                        @if (last != null) { <span class="d-block last-msg"><i class="bi bi-chat-square-text me-1" aria-hidden="true"></i>Служител: @last.Comment</span> }
+                    </span>
+                    <span class="status @ApplicationStatuses.Css(a.Status)"><i class="bi @ApplicationStatuses.Icon(a.Status)" aria-hidden="true"></i>@ApplicationStatuses.Name(a.Status)</span>
+                </a>
+            }
+        </div>
+        <p class="text-center mt-4"><a class="btn btn-outline-primary" asp-controller="Services" asp-action="Index"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Ново заявление</a></p>
+    }
+</div>

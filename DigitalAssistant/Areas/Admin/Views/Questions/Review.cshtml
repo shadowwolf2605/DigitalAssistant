@@ -1,0 +1,52 @@
+@model QuestionReviewModel
+@{
+    ViewData["Title"] = "Въпрос без отговор";
+    ViewData["Help"] = "admin-vaprosi";
+    var q = (Question)ViewBag.Question;
+}
+<h1>Въпрос без отговор</h1>
+<div class="card card-body shadow-sm mb-3">
+    <p class="fs-5 mb-1 question-text">„@q.Text“</p>
+    <p class="text-muted small mb-0">Зададен на @q.AskedAt.ToString("dd.MM.yyyy HH:mm") · @(q.Reviewed ? "прегледан" : "нов")</p>
+</div>
+@if (q.AnsweredByAi)
+{
+    <div class="card card-body shadow-sm mb-3 ai-review" id="aiAnswer">
+        <div class="small fw-semibold text-primary mb-1"><i class="bi bi-stars me-1" aria-hidden="true"></i>Изкуственият интелект отговори така:</div>
+        <p class="mb-0" style="white-space: pre-line">@q.AiAnswer</p>
+        @if (q.AiServiceIdList.Any()) { <p class="small text-muted mb-0 mt-2">Предложената услуга е избрана по-долу. Проверете дали е правилна.</p> }
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <form asp-action="Review" method="post" class="card card-body shadow-sm">
+            <h2 class="h5">Свържи въпроса с услуга</h2>
+            <div asp-validation-summary="All" class="alert alert-danger py-2"></div>
+            <input type="hidden" asp-for="QuestionId" />
+            <div class="mb-3">
+                <label asp-for="ServiceId" class="form-label"></label>
+                <select asp-for="ServiceId" asp-items="ViewBag.Services" class="form-select"><option value="">-- изберете услуга --</option></select>
+                <span asp-validation-for="ServiceId" class="small"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Keywords" class="form-label"></label>
+                <input asp-for="Keywords" class="form-control" />
+                <div class="form-text">Предложени са думите от въпроса. Махнете тези, които не са нужни.</div>
+                <span asp-validation-for="Keywords" class="small"></span>
+            </div>
+            <button class="btn btn-primary" type="submit">Добави ключовите думи</button>
+        </form>
+    </div>
+    <div class="col-lg-4">
+        <div class="card card-body shadow-sm">
+            <h2 class="h5">Въпросът не е за услуга?</h2>
+            <p class="small text-muted">Ако въпросът не се отнася за административна услуга, просто го отбележете като прегледан.</p>
+            <form asp-action="Dismiss" asp-route-id="@q.Id" method="post">
+                <button class="btn btn-outline-secondary" type="submit">Отбележи като прегледан</button>
+            </form>
+        </div>
+    </div>
+</div>
+<a class="btn btn-link mt-3 ps-0" asp-action="Index">← Назад към списъка</a>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

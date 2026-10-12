@@ -1,0 +1,129 @@
+@using Microsoft.AspNetCore.Authentication
+@using DigitalAssistant.Services
+@inject DigitalAssistant.Data.AppDbContext Db
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    string Active(string c) => controller == c ? "active" : "";
+    // Гражданинът влиза с отделен профил (не с администраторския)
+    var citizen = (await Context.AuthenticateAsync(CitizenAuth.Scheme)).Principal;
+    var citizenName = citizen?.Identity?.IsAuthenticated == true ? citizen.Identity.Name : null;
+    // Брой заявления с нови съобщения от служителя
+    var unread = citizenName != null ? UnreadMessages.For(Db, CitizenAuth.Id(citizen!)).Count() : 0;
+}
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <partial name="_ThemeHead" />
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <title>@ViewData["Title"] – Дигитален помощник за административни услуги</title>
+    <script>document.documentElement.classList.add('js');</script>
+    @* Страница, показана отново след изпращане на формуляр (напр. с грешки), се показва веднага, без анимация *@
+    @if (Context.Request.Method == "POST")
+    {
+        <script>
+            document.documentElement.classList.add('no-anim');
+            window.addEventListener('pagereveal', e => e.viewTransition && e.viewTransition.skipTransition());
+        </script>
+    }
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <a class="skip-link" href="#main">Към съдържанието</a>
+    <div class="page-progress" id="pageProgress" aria-hidden="true"></div>
+    <header class="site-header">
+        <nav class="navbar @(citizenName != null ? "navbar-expand-xl signed-in" : "navbar-expand-lg") site-nav" id="siteNav">
+            <div class="container">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
+                    <span class="logo-mark"><i class="bi bi-signpost-2-fill" aria-hidden="true"></i></span>
+                    <span>Дигитален помощник<small>Административни услуги · Русе</small></span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu"
+                        aria-controls="mainMenu" aria-expanded="false" aria-label="@(unread > 0 ? "Меню, има нови съобщения" : "Меню")">
+                    <i class="bi bi-list" aria-hidden="true"></i>
+                    @if (unread > 0) { <span class="toggler-dot" aria-hidden="true"></span> }
+                </button>
+                <div class="collapse navbar-collapse" id="mainMenu">
+                    <ul class="navbar-nav ms-auto gap-md-1">
+                        <li class="nav-item"><a class="nav-link @Active("Home")" asp-area="" asp-controller="Home" asp-action="Index">Начало</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("Assistant")" asp-area="" asp-controller="Assistant" asp-action="Index">Помощник</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("Services")" asp-area="" asp-controller="Services" asp-action="Index">Услуги</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link @Active("Help")" href="@Url.Action("Index", "Help", new { area = "" })#@(ViewData["Help"] ?? "vapros")">Помощ</a>
+                        </li>
+                        <li class="nav-item d-none d-lg-flex" aria-hidden="true"><span class="nav-divider"></span></li>
+                        @if (citizenName != null)
+                        {
+                            <li class="nav-item"><a class="nav-link @Active("Applications")" asp-area="" asp-controller="Applications" asp-action="Index"><i class="bi bi-folder2-open me-1" aria-hidden="true"></i>Моите заявления
+                                @if (unread > 0) { <span class="badge rounded-pill bg-danger ms-1" id="unreadBadge" title="Нови съобщения от служителя">@unread</span> }</a></li>
+                            <li class="nav-item"><a class="nav-link @(controller == "Account" ? "active" : "")" asp-area="" asp-controller="Account" asp-action="Profile" title="@citizenName"><i class="bi bi-person-circle me-1" aria-hidden="true"></i>Профил</a></li>
+                            <li class="nav-item nav-user">
+                                <form method="post" asp-area="" asp-controller="Account" asp-action="Logout" class="d-inline">
+                                    <button type="submit" class="nav-link btn btn-link" title="@citizenName"><i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Изход</button>
+                                </form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item"><a class="nav-link @(controller == "Account" && ViewContext.RouteData.Values["action"]?.ToString() != "Register" ? "active" : "")" asp-area="" asp-controller="Account" asp-action="Login"><i class="bi bi-person me-1" aria-hidden="true"></i>Вход</a></li>
+                            <li class="nav-item ms-md-1"><a class="nav-link nav-cta" asp-area="" asp-controller="Account" asp-action="Register">Регистрация</a></li>
+                        }
+                        <li class="nav-item dropdown theme-switch ms-md-1"><partial name="_ThemeSwitch" model="@("nav-link btn btn-link")" /></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main id="main" tabindex="-1">
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-5">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-white fw-bold display-font fs-5">
+                        <span class="logo-mark"><i class="bi bi-signpost-2-fill" aria-hidden="true"></i></span> Дигитален помощник
+                    </div>
+                    <p class="mb-0">Бърза и ясна информация за административните услуги – какви документи са нужни, къде се подават, колко струват и за колко време стават.</p>
+                </div>
+                <div class="col-6 col-lg-3 offset-lg-1">
+                    <h3>Разгледайте</h3>
+                    <ul class="list-unstyled d-grid gap-2 mb-0">
+                        <li><a asp-area="" asp-controller="Assistant" asp-action="Index">Помощник</a></li>
+                        <li><a asp-area="" asp-controller="Services" asp-action="Index">Всички услуги</a></li>
+                        <li><a asp-area="" asp-controller="Applications" asp-action="Index">Онлайн заявления</a></li>
+                        <li><a href="@Url.Action("Index", "Help", new { area = "" })#vapros">Упътване</a></li>
+                    </ul>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <h3>Контакти</h3>
+                    <ul class="list-unstyled d-grid gap-2 mb-0">
+                        <li><i class="bi bi-geo-alt me-1" aria-hidden="true"></i>гр. Русе, пл. „Свобода“ 6</li>
+                        <li><i class="bi bi-telephone me-1" aria-hidden="true"></i>082 800 800</li>
+                        <li><i class="bi bi-clock me-1" aria-hidden="true"></i>пон.–пет. 8:30–17:30</li>
+                        <li><a asp-area="" asp-controller="Home" asp-action="Privacy">Лични данни</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="small-print d-flex flex-wrap justify-content-between gap-2">
+                <span>© @DateTime.Today.Year „Административен информационен център“ ЕООД</span>
+                <span><a asp-area="" asp-controller="Home" asp-action="Privacy">Защита на личните данни</a></span>
+            </div>
+        </div>
+    </footer>
+
+    <button type="button" class="to-top" id="toTop" aria-label="Към началото на страницата"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/loading.js" asp-append-version="true"></script>
+    <script src="~/js/theme.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,119 @@
+@model ReportTable?
+@{
+    ViewData["Title"] = "Справки";
+    ViewData["Help"] = "admin-spravki";
+    var req = (ReportRequest)ViewBag.Request;
+    var def = ReportService.Find(req.Type);
+}
+<h1>Справки</h1>
+
+<form method="get" asp-action="Index" class="card card-body shadow-sm mb-3" id="reportForm">
+    <div asp-validation-summary="All" class="alert alert-danger py-2"></div>
+    <input type="hidden" name="show" value="true" />
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label" for="Type">Вид на справката</label>
+            <select class="form-select" id="Type" name="Type">
+                @foreach (var d in ReportService.Definitions)
+                {
+                    <option value="@d.Key" selected="@(d.Key == def.Key)">@d.Title</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2 period">
+            <label class="form-label" for="From">От дата</label>
+            <input class="form-control" type="date" id="From" name="From" value="@req.From.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-md-2 period">
+            <label class="form-label" for="To">До дата</label>
+            <input class="form-control" type="date" id="To" name="To" value="@req.To.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-md-2 only-services">
+            <label class="form-label" for="CategoryId">Категория</label>
+            <select class="form-select" id="CategoryId" name="CategoryId" asp-items="ViewBag.Categories"><option value="">Всички</option></select>
+        </div>
+        <div class="col-md-2 only-services">
+            <label class="form-label" for="InstitutionId">Институция</label>
+            <select class="form-select" id="InstitutionId" name="InstitutionId" asp-items="ViewBag.Institutions"><option value="">Всички</option></select>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <span class="form-label d-block">Колони в справката</span>
+        @foreach (var d in ReportService.Definitions)
+        {
+            <div class="columns" data-type="@d.Key">
+                @foreach (var c in d.Columns)
+                {
+                    var isChecked = d.Key != def.Key || req.Cols.Count == 0 || req.Cols.Contains(c.Key);
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="Cols" value="@c.Key" id="col-@d.Key-@c.Key" checked="@isChecked" />
+                        <label class="form-check-label" for="col-@d.Key-@c.Key">@c.Title</label>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="mt-3"><button class="btn btn-primary" type="submit">Покажи</button></div>
+</form>
+
+@if (Model != null)
+{
+    var query = Context.Request.QueryString.Value;
+    <div class="card shadow-sm">
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h2 class="h5 mb-0">@Model.Title</h2>
+                <div class="text-muted small">@Model.Subtitle</div>
+            </div>
+            <div class="d-flex gap-2">
+                <a class="btn btn-outline-success" href="@Url.Action("Export")@query&format=xls">Изтегли .xls</a>
+                <a class="btn btn-outline-danger" href="@Url.Action("Export")@query&format=pdf">Изтегли .pdf</a>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead class="table-light"><tr>@foreach (var h in Model.Headers) { <th>@h</th> }</tr></thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr>@foreach (var v in row) { <td>@v</td> }</tr>
+                    }
+                    @if (Model.Rows.Count == 0)
+                    {
+                        <tr><td colspan="@Model.Headers.Count" class="text-center text-muted py-4">Няма данни за избрания период.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.Footer != null)
+        {
+            <div class="card-footer fw-semibold">@Model.Footer</div>
+        }
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // Показва само колоните и полетата за избрания вид справка
+        (function () {
+            const type = document.getElementById('Type');
+            const needsPeriod = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ReportService.Definitions.ToDictionary(d => d.Key, d => d.NeedsPeriod)));
+            function update() {
+                document.querySelectorAll('.columns').forEach(group => {
+                    const visible = group.dataset.type === type.value;
+                    group.style.display = visible ? '' : 'none';
+                    group.querySelectorAll('input').forEach(i => i.disabled = !visible);
+                });
+                document.querySelectorAll('.period').forEach(e => e.style.display = needsPeriod[type.value] ? '' : 'none');
+                document.querySelectorAll('.only-services').forEach(e => {
+                    e.style.display = type.value === 'services' ? '' : 'none';
+                    e.querySelector('select').disabled = type.value !== 'services';
+                });
+            }
+            type.addEventListener('change', update);
+            update();
+        })();
+    </script>
+}
