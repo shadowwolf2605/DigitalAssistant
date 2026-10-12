@@ -100,8 +100,9 @@ public class Notifications
     {
         if (string.IsNullOrWhiteSpace(token)) return Task.FromResult<CitizenToken?>(null);
         var hash = HashToken(token);
+        var now = DateTime.Now;
         return db.CitizenTokens.Include(t => t.Citizen)
-            .FirstOrDefaultAsync(t => t.TokenHash == hash && t.Purpose == purpose && t.UsedAt == null && t.ExpiresAt > DateTime.Now);
+            .FirstOrDefaultAsync(t => t.TokenHash == hash && t.Purpose == purpose && t.UsedAt == null && t.ExpiresAt > now);
     }
 }
 

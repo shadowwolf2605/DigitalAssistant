@@ -125,7 +125,9 @@ public class ApplicationsController : Controller
 
         // Кои съобщения са нови (след последното отваряне). След това заявлението се отбелязва като видяно.
         ViewBag.SeenBefore = app.CitizenSeenAt;
-        await _db.Applications.Where(a => a.Id == id).ExecuteUpdateAsync(u => u.SetProperty(a => a.CitizenSeenAt, DateTime.Now));
+        // Часът се взима от приложението, а не от базата: в базата може да е в друга часова зона (UTC)
+        var seenAt = DateTime.Now;
+        await _db.Applications.Where(a => a.Id == id).ExecuteUpdateAsync(u => u.SetProperty(a => a.CitizenSeenAt, seenAt));
         ViewBag.Expected = ApplicationStatuses.ExpectedDate(app);
         ViewBag.Message = new CitizenMessageModel();
         // Кои документи служителят е поискал служебно от други институции (без съдържанието на отговора)

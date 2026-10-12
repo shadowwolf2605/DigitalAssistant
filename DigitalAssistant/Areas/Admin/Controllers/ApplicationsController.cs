@@ -73,7 +73,9 @@ public class ApplicationsController : AdminController
 
         // Новите съобщения от гражданина се отбелязват, след това заявлението се смята за видяно
         ViewBag.SeenBefore = app.AdminSeenAt;
-        await _db.Applications.Where(a => a.Id == id).ExecuteUpdateAsync(u => u.SetProperty(a => a.AdminSeenAt, DateTime.Now));
+        // Часът се взима от приложението, а не от базата: в базата може да е в друга часова зона (UTC)
+        var seenAt = DateTime.Now;
+        await _db.Applications.Where(a => a.Id == id).ExecuteUpdateAsync(u => u.SetProperty(a => a.AdminSeenAt, seenAt));
         ViewBag.Egn = _protector.Unprotect(app.Citizen.EgnProtected);
         ViewBag.Expected = ApplicationStatuses.ExpectedDate(app);
         // Насрочените отговори (без съдържанието на файловете)
