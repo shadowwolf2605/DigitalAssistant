@@ -45,7 +45,7 @@ public class InfoRequestsController : AdminController
                 Id = r.Id, ApplicationId = r.ApplicationId, ToInstitution = new Institution { Name = r.ToInstitution!.Name },
                 Question = r.Question, CreatedBy = r.CreatedBy, FromInstitution = r.FromInstitution, CreatedAt = r.CreatedAt,
                 Answer = r.Answer, AnsweredBy = r.AnsweredBy, AnsweredAt = r.AnsweredAt, AnswerFileName = r.AnswerFileName,
-                Application = new Application { Number = r.Application!.Number, Service = new Service { Name = r.Application.Service!.Name } }
+                Application = new Application { Number = r.Application!.Number, City = r.Application.City, Service = new Service { Name = r.Application.Service!.Name } }
             }).ToListAsync();
         return View(list);
     }
@@ -112,6 +112,19 @@ public class InfoRequestsController : AdminController
         await _db.SaveChangesAsync();
         Success($"Отговорът е изпратен. Служителят ({r.CreatedBy}) ще го види в заявление № {r.Application.Number}.");
         return RedirectToAction(nameof(Index));
+    }
+
+    // Файлът към отговора. Може да го изтегли институцията, която е отговорила, и служителят, който е питал.
+    public async Task<IActionResult> File(int id)
+    {
+        var r = await _db.InfoRequests.Include(x => x.Application)
+            .FirstOrDefaultAsync(x => x.Id == id && x.AnswerFile != null);
+        if (r == null) return NotFound();
+        var me = await MeAsync();
+        if (r.CreatedBy != AdminName && !InfoRequests.CanAnswer(me, r)) return NotFound();
+        AuditService.Log(_db, AdminName, "Изтеглен документ от служебна справка", $"№ {r.Application!.Number}: {r.AnswerFileName}");
+        await _db.SaveChangesAsync();
+        return File(r.AnswerFile!, r.AnswerContentType ?? "application/octet-stream", r.AnswerFileName);
     }
 
     private Task<InfoRequest?> LoadAsync(int id) =>

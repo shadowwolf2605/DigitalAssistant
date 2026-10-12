@@ -26,6 +26,10 @@ public class ReportRequest
     public List<string> Cols { get; set; } = new();
     public int? CategoryId { get; set; }
     public int? InstitutionId { get; set; }
+
+    // Градът на служителя – справката за заявленията е само за него (не идва от формата)
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public string? City { get; set; }
 }
 
 // Справки (т. 3.1.4)
@@ -57,7 +61,7 @@ public class ReportService
         new("applications", "Онлайн заявления за период", true, new()
         {
             new("number", "Номер"), new("date", "Подадено на"), new("citizen", "Гражданин"), new("service", "Услуга"),
-            new("status", "Статус"), new("updated", "Последна промяна")
+            new("city", "Град"), new("status", "Статус"), new("updated", "Последна промяна")
         }),
     };
 
@@ -203,6 +207,7 @@ public class ReportService
             {
                 var data = await _db.Applications.Include(a => a.Citizen).Include(a => a.Service)
                     .Where(a => a.CreatedAt >= from && a.CreatedAt < toExclusive)
+                    .Where(a => req.City == null || a.City == req.City)
                     .OrderByDescending(a => a.CreatedAt)
                     .ToListAsync();
                 foreach (var a in data)
@@ -213,6 +218,7 @@ public class ReportService
                         ["date"] = a.CreatedAt.ToString("dd.MM.yyyy HH:mm"),
                         ["citizen"] = a.Citizen!.FullName,
                         ["service"] = a.Service!.Name,
+                        ["city"] = a.City,
                         ["status"] = ApplicationStatuses.Name(a.Status),
                         ["updated"] = a.UpdatedAt.ToString("dd.MM.yyyy HH:mm")
                     });

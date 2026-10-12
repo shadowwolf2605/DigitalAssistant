@@ -15,7 +15,7 @@ public class EmailOptions
     public string? Username { get; set; }
     public string? Password { get; set; }
     public string From { get; set; } = "no-reply@uslugi-ruse.bg";
-    public string FromName { get; set; } = "Дигитален помощник – АИЦ Русе";
+    public string FromName { get; set; } = "Дигитален помощник за административни услуги";
 }
 
 // Изпращане на известия до гражданите по имейл

@@ -115,7 +115,8 @@ public static class UnreadMessages
 
     // Заявления с нови съобщения от гражданина, които служителите още не са видели.
     // Ако заявлението още не е отваряно, ново е всичко след първото събитие (подаването).
-    public static IQueryable<Application> ForStaff(AppDbContext db) =>
-        db.Applications.Where(a => a.Events.Any(e => e.ByCitizen && e.Comment != "" &&
+    // city – градът на служителя (null за всички градове)
+    public static IQueryable<Application> ForStaff(AppDbContext db, string? city = null) =>
+        db.Applications.Where(a => (city == null || a.City == city) && a.Events.Any(e => e.ByCitizen && e.Comment != "" &&
             (a.AdminSeenAt != null ? e.At > a.AdminSeenAt : e.At > a.Events.Min(x => x.At))));
 }

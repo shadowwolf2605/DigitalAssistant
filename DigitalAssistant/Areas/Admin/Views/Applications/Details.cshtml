@@ -59,7 +59,7 @@
         <div class="info-card">
             <h2><i class="bi bi-card-text" aria-hidden="true"></i>Данни на заявлението</h2>
             <div class="row g-3">
-                <div class="col-md-6"><div class="text-muted small fw-semibold">Услуга</div>@app.Service!.Name @if (app.Express) { <span class="badge text-bg-warning ms-1">бърза услуга</span> }<div class="small text-muted">@app.Service.Institution!.Name</div></div>
+                <div class="col-md-6"><div class="text-muted small fw-semibold">Услуга</div>@app.Service!.Name @if (app.Express) { <span class="badge text-bg-warning ms-1">бърза услуга</span> }<div class="small text-muted">@app.Service.Institution!.Name@(app.City.Length > 0 ? " · " + app.City : "")</div></div>
                 <div class="col-md-3"><div class="text-muted small fw-semibold">Подадено на</div>@app.CreatedAt.ToString("dd.MM.yyyy HH:mm")</div>
                 @if (expected != null)
                 {

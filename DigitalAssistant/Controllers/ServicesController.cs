@@ -46,6 +46,8 @@ public class ServicesController : Controller
         var service = await _db.Services.Include(s => s.Category).Include(s => s.Institution)
             .FirstOrDefaultAsync(s => s.Id == id && s.IsActive);
         if (service == null) return NotFound();
+        ViewBag.Offices = await _db.Offices.AsNoTracking().Where(o => o.InstitutionId == service.InstitutionId)
+            .OrderBy(o => o.City).ToListAsync();
         return View(service);
     }
 

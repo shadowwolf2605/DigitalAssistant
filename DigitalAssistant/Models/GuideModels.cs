@@ -106,4 +106,7 @@ public class GuideViewModel
     // Мястото, ако човекът е споделил местоположението си
     public GuideCities.City? NearestCity { get; set; }
     public string? CityName => string.IsNullOrWhiteSpace(State.City) ? NearestCity?.Name : State.City;
+
+    // Офисът на институцията в този град, ако администраторът го е добавил
+    public Office? Office { get; set; }
 }

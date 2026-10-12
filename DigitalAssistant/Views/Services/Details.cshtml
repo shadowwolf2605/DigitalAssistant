@@ -7,6 +7,7 @@
     var documents = DigitalAssistant.Services.ServiceText.Documents(Model.RequiredDocuments);
     var official = DigitalAssistant.Services.ServiceText.Documents(Model.OfficialDocuments);
     var steps = DigitalAssistant.Services.ServiceText.Steps(Model.Steps);
+    List<Office> offices = ViewBag.Offices;
 }
 
 <section class="hero page-hero">
@@ -95,7 +96,20 @@
                     <div><div class="label">Място на подаване</div>
                         @Model.Address
                         @if (!string.IsNullOrWhiteSpace(Model.WorkingHours)) { <div class="small text-muted">Работно време: @Model.WorkingHours</div> }
-                        @if (!string.IsNullOrWhiteSpace(Model.Phone)) { <div class="small text-muted">Телефон: @Model.Phone</div> }
+                        @if (!string.IsNullOrWhiteSpace(Model.Phone)) { <div class="small text-muted">Телефон за справки за цялата страна: @Model.Phone</div> }
+                        @if (offices.Count > 0)
+                        {
+                            <details class="small mt-1" id="officeList">
+                                <summary>Адреси по градове (@offices.Count)</summary>
+                                <ul class="list-unstyled mb-0 mt-1">
+                                    @foreach (var o in offices)
+                                    {
+                                        <li class="mb-1"><strong>@o.City</strong> – @o.Address@(string.IsNullOrWhiteSpace(o.Phone) ? "" : ", тел. " + o.Phone)</li>
+                                    }
+                                </ul>
+                            </details>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Model.PlaceSearch)) { <div class="small text-muted mt-1">Мястото във вашия град ще видите в „Упътване стъпка по стъпка“.</div> }
                     </div>
                 </div>
                 @if (!string.IsNullOrWhiteSpace(Model.ResultDelivery))

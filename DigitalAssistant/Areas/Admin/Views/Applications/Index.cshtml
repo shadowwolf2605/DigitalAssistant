@@ -7,6 +7,8 @@
     bool messages = ViewBag.Messages;
     bool overdue = ViewBag.Overdue;
     int messagesCount = ViewBag.MessagesCount;
+    string? city = ViewBag.City;
+    List<string> cities = ViewBag.Cities;
     // Ако служител още не е отварял заявлението, ново е всичко след подаването
     bool HasNew(Application a)
     {
@@ -24,31 +26,38 @@
         @if (current != null) { <input type="hidden" name="status" value="@current" /> }
         @if (messages) { <input type="hidden" name="messages" value="true" /> }
         @if (overdue) { <input type="hidden" name="overdue" value="true" /> }
+        @if (cities.Count > 1)
+        {
+            <select class="form-select" name="city" id="cityFilter" aria-label="Град" style="max-width: 11rem" onchange="this.form.requestSubmit()">
+                <option value="">Всички градове</option>
+                @foreach (var c in cities) { <option value="@c" selected="@(c == city)">@c</option> }
+            </select>
+        }
         <input class="form-control" type="search" name="q" id="q" value="@ViewBag.Query" placeholder="Номер, име, услуга или ЕГН" aria-label="Търсене" />
         <button class="btn btn-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Търси</span></button>
     </form>
 </div>
 
 <div class="cat-strip mb-3" style="--bs-gutter-x:0">
-    <a class="chip @(current == null && !messages && !overdue ? "active" : "")" asp-action="Index" asp-route-q="@ViewBag.Query">Всички <span class="badge text-bg-light ms-1">@counts.Values.Sum()</span></a>
-    <a class="chip @(messages ? "active" : "")" asp-action="Index" asp-route-messages="true" asp-route-q="@ViewBag.Query" id="chipMessages"><i class="bi bi-chat-square-text" aria-hidden="true"></i>Нови съобщения <span class="badge @(messagesCount > 0 ? "text-bg-danger" : "text-bg-light") ms-1">@messagesCount</span></a>
+    <a class="chip @(current == null && !messages && !overdue ? "active" : "")" asp-action="Index" asp-route-q="@ViewBag.Query" asp-route-city="@city">Всички <span class="badge text-bg-light ms-1">@counts.Values.Sum()</span></a>
+    <a class="chip @(messages ? "active" : "")" asp-action="Index" asp-route-messages="true" asp-route-q="@ViewBag.Query" asp-route-city="@city" id="chipMessages"><i class="bi bi-chat-square-text" aria-hidden="true"></i>Нови съобщения <span class="badge @(messagesCount > 0 ? "text-bg-danger" : "text-bg-light") ms-1">@messagesCount</span></a>
     @foreach (var st in ApplicationStatuses.All)
     {
-        <a class="chip @(current == st ? "active" : "")" asp-action="Index" asp-route-status="@st" asp-route-q="@ViewBag.Query">
+        <a class="chip @(current == st ? "active" : "")" asp-action="Index" asp-route-status="@st" asp-route-q="@ViewBag.Query" asp-route-city="@city">
             <i class="bi @ApplicationStatuses.Icon(st)" aria-hidden="true"></i>@ApplicationStatuses.Name(st)
             <span class="badge text-bg-light ms-1">@counts.GetValueOrDefault(st)</span>
         </a>
     }
     @if (overdue)
     {
-        <a class="chip active" asp-action="Index" asp-route-overdue="true" asp-route-q="@ViewBag.Query" id="chipOverdue"><i class="bi bi-alarm" aria-hidden="true"></i>Закъснели <span class="badge text-bg-light ms-1">@Model.Count</span></a>
+        <a class="chip active" asp-action="Index" asp-route-overdue="true" asp-route-q="@ViewBag.Query" asp-route-city="@city" id="chipOverdue"><i class="bi bi-alarm" aria-hidden="true"></i>Закъснели <span class="badge text-bg-light ms-1">@Model.Count</span></a>
     }
 </div>
 
 <div class="table-wrap">
     <div class="table-responsive border-0">
         <table class="table table-hover">
-            <thead><tr><th>Номер</th><th>Подадено на</th><th>Гражданин</th><th>Услуга</th><th>Статус</th><th></th></tr></thead>
+            <thead><tr><th>Номер</th><th>Подадено на</th><th>Гражданин</th><th>Услуга</th><th>Град</th><th>Статус</th><th></th></tr></thead>
             <tbody>
                 @foreach (var a in Model)
                 {
@@ -58,13 +67,14 @@
                         <td class="text-nowrap">@a.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
                         <td>@a.Citizen!.FullName</td>
                         <td>@a.Service!.Name</td>
+                        <td>@a.City</td>
                         <td><span class="status @ApplicationStatuses.Css(a.Status)"><i class="bi @ApplicationStatuses.Icon(a.Status)" aria-hidden="true"></i>@ApplicationStatuses.Name(a.Status)</span></td>
                         <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@a.Id">Отвори</a></td>
                     </tr>
                 }
                 @if (Model.Count == 0)
                 {
-                    <tr><td colspan="6" class="text-center text-muted py-4">Няма заявления.</td></tr>
+                    <tr><td colspan="7" class="text-center text-muted py-4">Няма заявления.</td></tr>
                 }
             </tbody>
         </table>

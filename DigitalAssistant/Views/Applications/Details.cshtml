@@ -39,7 +39,7 @@
             </ol>
         </nav>
         <h1 class="anim" style="--i:1">Заявление № @Model.Number</h1>
-        <p class="lead anim mb-0" style="--i:2">@Model.Service!.Name · @Model.Service.Institution!.Name</p>
+        <p class="lead anim mb-0" style="--i:2">@Model.Service!.Name · @Model.Service.Institution!.Name@(Model.City.Length > 0 ? " · " + Model.City : "")</p>
     </div>
 </section>
 

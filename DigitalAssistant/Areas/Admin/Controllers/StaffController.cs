@@ -61,6 +61,27 @@ public class StaffController : AdminController
         return RedirectToAction(nameof(Index));
     }
 
+    // Градът на служителя: вижда заявленията и справките само от този град
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetCity(int id, string? city)
+    {
+        var admin = await _db.AdminUsers.FindAsync(id);
+        if (admin == null) return NotFound();
+        city = string.IsNullOrWhiteSpace(city) ? null : city;
+        if (city != null && !GuideCities.All.Any(c => c.Name == city)) return NotFound();
+        if (admin.IsMain && city != null)
+        {
+            TempData["Error"] = "Главният администратор вижда всички градове.";
+            return RedirectToAction(nameof(Index));
+        }
+        admin.City = city;
+        AuditService.Log(_db, AdminName, "Сменен град на служител", $"{admin.FullName} ({admin.Username}): {city ?? "всички градове"}");
+        await _db.SaveChangesAsync();
+        Success(city == null ? $"{admin.FullName} вижда заявленията от всички градове." : $"{admin.FullName} вижда само заявленията и справките от {city}.");
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create([Bind(Prefix = "Form")] StaffFormModel model)
@@ -77,7 +98,8 @@ public class StaffController : AdminController
         var admin = new AdminUser
         {
             Username = username, FullName = model.FullName.Trim(), MustChangePassword = true,
-            InstitutionId = model.InstitutionId != null && await _db.Institutions.AnyAsync(i => i.Id == model.InstitutionId) ? model.InstitutionId : null
+            InstitutionId = model.InstitutionId != null && await _db.Institutions.AnyAsync(i => i.Id == model.InstitutionId) ? model.InstitutionId : null,
+            City = GuideCities.All.Any(c => c.Name == model.City) ? model.City : null
         };
         admin.PasswordHash = _hasher.HashPassword(admin, model.Password);
         _db.AdminUsers.Add(admin);

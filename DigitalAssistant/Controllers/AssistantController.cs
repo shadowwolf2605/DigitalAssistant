@@ -186,6 +186,10 @@ public class AssistantController : Controller
         model.Total = steps.Count;
         model.Number = index < 0 ? steps.Count : index + 1;
 
+        // Точният адрес в града на човека, ако институцията има офис там
+        if (model.Step == GuideStep.Guide && service != null && !st.IsOnline && model.CityName is string city)
+            model.Office = await _db.Offices.AsNoTracking().FirstOrDefaultAsync(o => o.InstitutionId == service.InstitutionId && o.City == city);
+
         // „Назад“ премахва отговора на предишния въпрос
         var previous = index < 0 ? steps.Count - 1 : index - 1;
         if (previous >= 0) model.Back = st.Route(steps[previous].Param);

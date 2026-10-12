@@ -28,6 +28,34 @@ public class Institution
     public List<Service> Services { get; set; } = new();
 }
 
+// Офис на институция в даден град: точен адрес, телефон и работно време.
+// Помощникът го показва, когато човекът е в този град. Ако за града няма офис, показва търсене в картата.
+public class Office
+{
+    public int Id { get; set; }
+
+    [Display(Name = "Институция")]
+    public int InstitutionId { get; set; }
+    public Institution? Institution { get; set; }
+
+    [Display(Name = "Град")]
+    [Required(ErrorMessage = "Изберете град.")]
+    public string City { get; set; } = "";
+
+    [Display(Name = "Адрес")]
+    [Required(ErrorMessage = "Напишете адреса.")]
+    [StringLength(200, ErrorMessage = "Адресът трябва да е до 200 знака.")]
+    public string Address { get; set; } = "";
+
+    [Display(Name = "Телефон")]
+    [StringLength(50, ErrorMessage = "Телефонът трябва да е до 50 знака.")]
+    public string Phone { get; set; } = "";
+
+    [Display(Name = "Работно време")]
+    [StringLength(100, ErrorMessage = "Работното време трябва да е до 100 знака.")]
+    public string WorkingHours { get; set; } = "";
+}
+
 // Административна услуга (т. 3.1.1 от спецификацията)
 public class Service
 {
@@ -165,6 +193,9 @@ public class AdminUser
     // Празно – служител на центъра, който вижда справките до всички институции.
     public int? InstitutionId { get; set; }
     public Institution? Institution { get; set; }
+
+    // Градът на служителя: вижда само заявленията и справките от този град. Празно – всички градове.
+    public string? City { get; set; }
 }
 
 // Служебна справка: служител, който обработва заявление, иска информация или документ от друга институция.
@@ -283,6 +314,9 @@ public class Application
 
     // Заявена е бърза услуга
     public bool Express { get; set; }
+
+    // Градът, в който се обработва заявлението (областният град, избран от гражданина)
+    public string City { get; set; } = "";
 
     public ApplicationStatus Status { get; set; } = ApplicationStatus.Submitted;
     public DateTime CreatedAt { get; set; } = DateTime.Now;

@@ -278,6 +278,10 @@ public class StaffFormModel
 
     [Display(Name = "Институция")]
     public int? InstitutionId { get; set; }
+
+    // Градът на служителя (празно – всички градове)
+    [Display(Name = "Град")]
+    public string? City { get; set; }
 }
 
 // Формуляр за онлайн заявление (т. 3.1.3)
@@ -303,6 +307,10 @@ public class ApplicationFormModel
 
     // Бърза услуга (ако услугата има такава)
     public bool Express { get; set; }
+
+    [Display(Name = "Град, в който да се обработи заявлението")]
+    [Required(ErrorMessage = "Изберете град.")]
+    public string? City { get; set; }
 }
 
 // Смяна на статуса на заявление от администратора

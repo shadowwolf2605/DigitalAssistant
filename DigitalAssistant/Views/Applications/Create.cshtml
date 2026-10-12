@@ -61,6 +61,16 @@
                 </div>
 
                 <div class="mb-4">
+                    <label asp-for="City" class="form-label"></label>
+                    <select asp-for="City" class="form-select" style="max-width: 20rem" aria-describedby="cityHelp">
+                        <option value="">Изберете град…</option>
+                        @foreach (var c in GuideCities.All.OrderBy(c => c.Name)) { <option value="@c.Name">@c.Name</option> }
+                    </select>
+                    <div class="form-text" id="cityHelp">Областният град, в който живеете или искате да получите документа. Заявлението отива при служителите там.</div>
+                    <span asp-validation-for="City" class="small"></span>
+                </div>
+
+                <div class="mb-4">
                     <label asp-for="Details" class="form-label"></label>
                     <textarea asp-for="Details" class="form-control" rows="4" maxlength="1000"
                               placeholder="Например: Искам удостоверение за семейно положение за представяне в банка."></textarea>

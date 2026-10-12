@@ -24,7 +24,7 @@
             <div class="row g-3">
                 <div class="col-md-6"><div class="text-muted small fw-semibold">Име</div>@app.Citizen!.FullName</div>
                 <div class="col-md-6"><div class="text-muted small fw-semibold">ЕГН</div>@ViewBag.Egn</div>
-                <div class="col-md-6"><div class="text-muted small fw-semibold">Заявление</div>№ @app.Number</div>
+                <div class="col-md-6"><div class="text-muted small fw-semibold">Заявление</div>№ @app.Number@(app.City.Length > 0 ? " · " + app.City : "")</div>
                 <div class="col-md-6"><div class="text-muted small fw-semibold">Услуга</div>@app.Service!.Name</div>
             </div>
             <p class="small text-muted mt-3 mb-0"><i class="bi bi-shield-lock me-1" aria-hidden="true"></i>Виждате само данните, нужни да намерите човека. Отварянето на справката е записано в журнала.</p>

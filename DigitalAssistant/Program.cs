@@ -176,7 +176,21 @@ using (var scope = app.Services.CreateScope())
             app.Logger.LogWarning("Липсва Keys:Secret – ключовете за шифроване се пазят в базата без допълнителна защита.");
         if (created) databaseKeys.SetVersion(AppDbContext.SchemaVersion);
         else if (databaseKeys.GetVersion() is long version && version != AppDbContext.SchemaVersion)
-            app.Logger.LogError("Базата в PostgreSQL е от версия {Old}, а системата е версия {New}. Обновяване на PostgreSQL база не се поддържа.", version, AppDbContext.SchemaVersion);
+        {
+            // Базата в интернет се допълва с новите таблици и колони, без да се губят данни
+            if (version < AppDbContext.SchemaVersion &&
+                Enumerable.Range((int)version, AppDbContext.SchemaVersion - (int)version).All(v => DatabaseVersion.PostgresUpgrades.ContainsKey(v)))
+            {
+                using var transaction = db.Database.BeginTransaction();
+                for (var v = version; v < AppDbContext.SchemaVersion; v++)
+                    db.Database.ExecuteSqlRaw(DatabaseVersion.PostgresUpgrades[v]);
+                transaction.Commit();
+                databaseKeys.SetVersion(AppDbContext.SchemaVersion);
+                app.Logger.LogInformation("Базата в PostgreSQL е обновена от версия {Old} до версия {New}. Данните са запазени.", version, AppDbContext.SchemaVersion);
+            }
+            else
+                app.Logger.LogError("Базата в PostgreSQL е от версия {Old}, а системата е версия {New}. Тази промяна не може да се направи автоматично.", version, AppDbContext.SchemaVersion);
+        }
     }
     else if (created)
         DatabaseVersion.Set(db);

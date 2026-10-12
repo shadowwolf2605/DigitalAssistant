@@ -29,6 +29,7 @@ public class ReportsController : AdminController
         ViewBag.Request = request;
         ViewBag.Categories = new SelectList(await _db.Categories.OrderBy(c => c.Name).ToListAsync(), "Id", "Name", request.CategoryId);
         ViewBag.Institutions = new SelectList(await _db.Institutions.OrderBy(i => i.Name).ToListAsync(), "Id", "Name", request.InstitutionId);
+        request.City = AdminCity;
         ReportTable? table = show ? await _reports.BuildAsync(request) : null;
         return View(table);
     }
@@ -54,6 +55,7 @@ public class ReportsController : AdminController
     {
         if (!ModelState.IsValid || CheckDates(request) != null) return RedirectToAction(nameof(Index), request);
 
+        request.City = AdminCity;
         var table = await _reports.BuildAsync(request);
         var name = $"spravka-{request.Type}-{DateTime.Now:yyyy-MM-dd}";
         return format == "pdf"

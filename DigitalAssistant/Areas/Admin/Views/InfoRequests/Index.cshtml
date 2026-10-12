@@ -35,12 +35,12 @@ else
                     <strong>@(tab == "sent" ? "До " + r.ToInstitution!.Name : "От " + r.FromInstitution + " (" + r.CreatedBy + ")")</strong>
                     <span class="small text-muted">@r.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
                 </div>
-                <div class="small text-muted">Заявление № @r.Application!.Number · @r.Application.Service!.Name @(tab != "sent" ? "· до " + r.ToInstitution!.Name : "")</div>
+                <div class="small text-muted">Заявление № @r.Application!.Number · @r.Application.Service!.Name@(r.Application.City.Length > 0 ? " · " + r.Application.City : "") @(tab != "sent" ? "· до " + r.ToInstitution!.Name : "")</div>
                 <div class="mt-1">@r.Question</div>
                 @if (r.IsAnswered)
                 {
                     <div class="info-answer"><span class="small fw-semibold">Отговор от @r.AnsweredBy (@r.AnsweredAt!.Value.ToString("dd.MM.yyyy HH:mm")):</span> @r.Answer
-                        @if (r.AnswerFileName != null) { <div class="small"><i class="bi bi-paperclip" aria-hidden="true"></i> @r.AnswerFileName</div> }
+                        @if (r.AnswerFileName != null) { <div class="small"><a asp-action="File" asp-route-id="@r.Id"><i class="bi @ApplicationFileRules.Icon(r.AnswerFileName) me-1" aria-hidden="true"></i>@r.AnswerFileName</a></div> }
                     </div>
                 }
                 <div class="mt-2">

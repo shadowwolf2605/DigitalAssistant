@@ -12,6 +12,25 @@ public class ExportService
 {
     public const string Organization = "„Административен информационен център“ ЕООД";
 
+    // Шрифтът в PDF няма емоджи и те излизат като празни места, затова се махат от текста
+    public static string WithoutEmoji(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        var sb = new System.Text.StringBuilder(text.Length);
+        for (int i = 0; i < text.Length; i++)
+        {
+            bool pair = char.IsSurrogatePair(text, i);
+            int cp = pair ? char.ConvertToUtf32(text, i) : text[i];
+            bool emoji = cp >= 0x1F000 ||                      // емоджи и символи извън основната таблица
+                         cp is >= 0x2600 and <= 0x27BF ||      // ☀ ✔ ✨ и подобни
+                         cp is >= 0x2B00 and <= 0x2BFF ||      // ⭐ ⬆
+                         cp is 0x200D or 0xFE0F or 0x20E3;     // свързващи знаци на емоджитата
+            if (!emoji && (pair || !char.IsSurrogate(text[i]))) sb.Append(pair ? text.Substring(i, 2) : text[i].ToString());
+            if (pair) i++;
+        }
+        return System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"[ \t]{2,}", " ").Trim();
+    }
+
     public byte[] ToXls(ReportTable table)
     {
         var workbook = new HSSFWorkbook();
@@ -129,7 +148,7 @@ public class ExportService
 
                         foreach (var row in table.Rows)
                             foreach (var value in row)
-                                t.Cell().Border(0.5f).Padding(4).Text(value);
+                                t.Cell().Border(0.5f).Padding(4).Text(WithoutEmoji(value));
                     });
 
                     if (table.Rows.Count == 0)
@@ -170,7 +189,6 @@ public class ExportService
                 page.Header().Column(col =>
                 {
                     col.Item().Text(Organization).FontSize(9).FontColor(Colors.Grey.Darken1);
-                    col.Item().Text("гр. Русе").FontSize(9).FontColor(Colors.Grey.Darken1);
                     col.Item().PaddingTop(16).Text("ПОТВЪРЖДЕНИЕ ЗА ПОДАДЕНО ЗАЯВЛЕНИЕ").FontSize(16).Bold();
                     col.Item().Text($"№ {app.Number} от {app.CreatedAt:dd.MM.yyyy} г., {app.CreatedAt:HH:mm} ч.").FontSize(12);
                     col.Item().PaddingBottom(16);
@@ -182,7 +200,7 @@ public class ExportService
                     void Row(string label, string value) => col.Item().Row(r =>
                     {
                         r.ConstantItem(170).Text(label).SemiBold();
-                        r.RelativeItem().Text(value);
+                        r.RelativeItem().Text(WithoutEmoji(value));
                     });
                     Row("Заявител:", citizen.FullName);
                     Row("ЕГН:", egnMasked);
@@ -191,6 +209,7 @@ public class ExportService
                     col.Item().PaddingVertical(6).LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten1);
                     Row("Услуга:", service.Name);
                     Row("Институция:", service.Institution?.Name ?? "");
+                    if (app.City.Length > 0) Row("Град:", app.City);
                     Row("Какво се заявява:", app.Details);
                     Row("Получаване на резултата:", app.ResultDelivery + (app.DeliveryAddress.Length > 0 ? $" – {app.DeliveryAddress}" : ""));
                     Row("Приложени документи:", string.Join(", ", app.Files.Where(f => !f.ByStaff).OrderBy(f => f.UploadedAt).Select(f => f.FileName)));

@@ -19,18 +19,18 @@ public class DashboardController : AdminController
             .Where(q => q.FoundCount == 0 && !q.Reviewed)
             .OrderByDescending(q => q.AskedAt)
             .ToListAsync();
-        ViewBag.NewApplications = await _db.Applications.Include(a => a.Citizen).Include(a => a.Service)
+        ViewBag.NewApplications = await InMyCity(_db.Applications).Include(a => a.Citizen).Include(a => a.Service)
             .Where(a => a.Status == ApplicationStatus.Submitted)
             .OrderByDescending(a => a.UpdatedAt)
             .ToListAsync();
-        ViewBag.WaitingDocuments = await _db.Applications.CountAsync(a => a.Status == ApplicationStatus.NeedsDocuments);
-        ViewBag.NewMessages = await UnreadMessages.ForStaff(_db).Include(a => a.Citizen).OrderByDescending(a => a.UpdatedAt).ToListAsync();
+        ViewBag.WaitingDocuments = await InMyCity(_db.Applications).CountAsync(a => a.Status == ApplicationStatus.NeedsDocuments);
+        ViewBag.NewMessages = await UnreadMessages.ForStaff(_db, AdminCity).Include(a => a.Citizen).OrderByDescending(a => a.UpdatedAt).ToListAsync();
         // „Днес“ се смята в приложението, не в базата (там часовата зона може да е друга)
         var today = DateTime.Today;
         var monthAgo = today.AddDays(-30);
         ViewBag.AiAnswered = await _db.Questions.CountAsync(q => q.AiAnswer != null && q.AskedAt >= monthAgo);
         // Заявления, чийто очакван срок вече е минал
-        var open = await _db.Applications.Include(a => a.Service).Include(a => a.Events)
+        var open = await InMyCity(_db.Applications).Include(a => a.Service).Include(a => a.Events)
             .Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.InProgress).ToListAsync();
         ViewBag.Overdue = open.Count(a => ApplicationStatuses.ExpectedDate(a) < DateTime.Today);
         ViewBag.ActiveServices = await _db.Services.CountAsync(s => s.IsActive);

@@ -1,0 +1,46 @@
+@model Office
+@{
+    List<Institution> institutions = ViewBag.Institutions;
+    string? myCity = ViewBag.MyCity;
+    var prefix = (string?)ViewData["Prefix"] ?? "";
+    string Id(string name) => (prefix + name).Replace(".", "_");
+    string? Err(string name) => ViewData.ModelState.TryGetValue(prefix + name, out var e) && e.Errors.Count > 0 ? e.Errors[0].ErrorMessage : null;
+}
+@if (!ViewData.ModelState.IsValid) { <div class="alert alert-danger py-2 small">Проверете полетата по-долу.</div> }
+<div class="mb-3">
+    <label class="form-label" for="@Id("InstitutionId")">Институция</label>
+    <select class="form-select" id="@Id("InstitutionId")" name="@(prefix)InstitutionId" required>
+        <option value="">Изберете…</option>
+        @foreach (var i in institutions) { <option value="@i.Id" selected="@(Model.InstitutionId == i.Id)">@i.Name</option> }
+    </select>
+    @if (Err("InstitutionId") is string errInstitutionId) { <div class="text-danger small">@errInstitutionId</div> }
+</div>
+<div class="mb-3">
+    <label class="form-label" for="@Id("City")">Град</label>
+    <select class="form-select" id="@Id("City")" name="@(prefix)City" required>
+        @if (myCity != null)
+        {
+            <option value="@myCity" selected>@myCity</option>
+        }
+        else
+        {
+            <option value="">Изберете…</option>
+            @foreach (var c in GuideCities.All.OrderBy(c => c.Name)) { <option value="@c.Name" selected="@(Model.City == c.Name)">@c.Name</option> }
+        }
+    </select>
+    @if (Err("City") is string errCity) { <div class="text-danger small">@errCity</div> }
+</div>
+<div class="mb-3">
+    <label class="form-label" for="@Id("Address")">Адрес</label>
+    <input class="form-control" id="@Id("Address")" name="@(prefix)Address" value="@Model.Address" maxlength="200" required placeholder="напр. ул. „Свобода“ 6, гише 3" />
+    <div class="form-text">По него помощникът търси мястото в картата.</div>
+    @if (Err("Address") is string errAddress) { <div class="text-danger small">@errAddress</div> }
+</div>
+<div class="mb-3">
+    <label class="form-label" for="@Id("Phone")">Телефон</label>
+    <input class="form-control" id="@Id("Phone")" name="@(prefix)Phone" value="@Model.Phone" maxlength="50" />
+</div>
+<div class="mb-3">
+    <label class="form-label" for="@Id("WorkingHours")">Работно време</label>
+    <input class="form-control" id="@Id("WorkingHours")" name="@(prefix)WorkingHours" value="@Model.WorkingHours" maxlength="100" placeholder="напр. понеделник – петък, 9:00 – 17:00" />
+</div>

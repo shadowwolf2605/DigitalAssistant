@@ -4,17 +4,18 @@
     ViewData["Help"] = "admin-sluzhiteli";
     StaffFormModel Form = ViewBag.Form;
     List<Institution> institutions = ViewBag.Institutions;
+    var cities = GuideCities.All.Select(c => c.Name).OrderBy(c => c).ToList();
 }
 <h1>Служители</h1>
 <p class="text-muted">Служителите обработват заявленията и поддържат услугите. Всеки има свой профил, за да се вижда в журнала кой какво е направил.</p>
 @if (TempData["Error"] is string err) { <div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i> @err</div> }
 
 <div class="row g-4">
-    <div class="col-xl-8">
+    <div class="col-xxl-8">
         <div class="card shadow-sm">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0" id="staffTable">
-                    <thead class="table-light"><tr><th>Служител</th><th>Институция</th><th>Последен вход</th><th>Статус</th><th></th></tr></thead>
+                    <thead class="table-light"><tr><th>Служител</th><th>Институция</th><th>Град</th><th>Последен вход</th><th>Статус</th><th></th></tr></thead>
                     <tbody>
                         @foreach (var a in Model)
                         {
@@ -25,6 +26,15 @@
                                         <select name="institutionId" class="form-select form-select-sm" style="min-width: 11rem" aria-label="Институция на @a.FullName" onchange="this.form.requestSubmit()" disabled="@a.IsMain">
                                             <option value="">Центърът (всички)</option>
                                             @foreach (var i in institutions) { <option value="@i.Id" selected="@(a.InstitutionId == i.Id)">@i.Name</option> }
+                                        </select>
+                                        <noscript><button type="submit" class="btn btn-sm btn-outline-primary">Запази</button></noscript>
+                                    </form>
+                                </td>
+                                <td>
+                                    <form method="post" asp-action="SetCity" asp-route-id="@a.Id" class="d-flex gap-1">
+                                        <select name="city" class="form-select form-select-sm" style="min-width: 10.5rem" aria-label="Град на @a.FullName" onchange="this.form.requestSubmit()" disabled="@a.IsMain">
+                                            <option value="">Всички градове</option>
+                                            @foreach (var c in cities) { <option value="@c" selected="@(a.City == c)">@c</option> }
                                         </select>
                                         <noscript><button type="submit" class="btn btn-sm btn-outline-primary">Запази</button></noscript>
                                     </form>
@@ -56,20 +66,21 @@
             </div>
         </div>
     </div>
-    <div class="col-xl-4">
+    <div class="col-xxl-4">
         <form method="post" asp-action="Create" class="aside-card" novalidate>
             <h2 class="h5 mb-3"><i class="bi bi-person-plus me-1" aria-hidden="true"></i> Нов служител</h2>
-            <div class="mb-3">
+            <div class="row g-3 mb-3">
+            <div class="col-md-6 col-xxl-12">
                 <label asp-for="@Form.FullName" class="form-label"></label>
                 <input asp-for="@Form.FullName" class="form-control" />
                 <span asp-validation-for="@Form.FullName" class="small"></span>
             </div>
-            <div class="mb-3">
+            <div class="col-md-6 col-xxl-12">
                 <label asp-for="@Form.Username" class="form-label"></label>
                 <input asp-for="@Form.Username" class="form-control" placeholder="напр. m.ivanova" />
                 <span asp-validation-for="@Form.Username" class="small"></span>
             </div>
-            <div class="mb-3">
+            <div class="col-md-6 col-xxl-12">
                 <label asp-for="@Form.InstitutionId" class="form-label"></label>
                 <select asp-for="@Form.InstitutionId" class="form-select" aria-describedby="instHelp">
                     <option value="">Центърът (всички институции)</option>
@@ -77,11 +88,20 @@
                 </select>
                 <div class="form-text" id="instHelp">Служителят вижда служебните справки до своята институция.</div>
             </div>
-            <div class="mb-3">
+            <div class="col-md-6 col-xxl-12">
+                <label asp-for="@Form.City" class="form-label"></label>
+                <select asp-for="@Form.City" class="form-select" aria-describedby="cityHelp">
+                    <option value="">Всички градове</option>
+                    @foreach (var c in cities) { <option value="@c">@c</option> }
+                </select>
+                <div class="form-text" id="cityHelp">Служителят вижда заявленията и справките само от своя град.</div>
+            </div>
+            <div class="col-md-6 col-xxl-12">
                 <label asp-for="@Form.Password" class="form-label"></label>
                 <input asp-for="@Form.Password" class="form-control" type="text" autocomplete="off" />
                 <span asp-validation-for="@Form.Password" class="small"></span>
                 <div class="form-text">Кажете я на служителя. При първия вход той ще трябва да си избере своя парола.</div>
+            </div>
             </div>
             <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Добави служител</button>
         </form>

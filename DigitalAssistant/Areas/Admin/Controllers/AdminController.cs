@@ -1,4 +1,5 @@
 using DigitalAssistant.Data;
+using DigitalAssistant.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -17,6 +18,13 @@ public abstract class AdminController : Controller
 
     protected void Success(string message) => TempData["Success"] = message;
 
+    // Градът на служителя (null – всички градове). Зарежда се преди всяко действие.
+    protected string? AdminCity { get; private set; }
+
+    // Само заявленията от града на служителя
+    protected IQueryable<Application> InMyCity(IQueryable<Application> query) =>
+        AdminCity == null ? query : query.Where(a => a.City == AdminCity);
+
     // Страниците, които може да отваря и служител на друга институция
     protected virtual bool ForInstitutionStaff => false;
 
@@ -24,7 +32,8 @@ public abstract class AdminController : Controller
     {
         var db = HttpContext.RequestServices.GetRequiredService<AppDbContext>();
         var me = await db.AdminUsers.AsNoTracking().Where(a => a.Username == AdminName)
-            .Select(a => new { a.MustChangePassword, a.InstitutionId }).FirstOrDefaultAsync();
+            .Select(a => new { a.MustChangePassword, a.InstitutionId, a.City }).FirstOrDefaultAsync();
+        AdminCity = string.IsNullOrEmpty(me?.City) ? null : me.City;
         if (me?.MustChangePassword == true)
         {
             context.Result = RedirectToAction("ChangePassword", "Account", new { area = "Admin" });
@@ -35,8 +44,16 @@ public abstract class AdminController : Controller
             context.Result = RedirectToAction("Index", "InfoRequests", new { area = "Admin" });
             return;
         }
+        if (!await AllowedAsync(context))
+        {
+            context.Result = NotFound();
+            return;
+        }
         await next();
     }
+
+    // Допълнителна проверка дали служителят има достъп (например до заявление от друг град)
+    protected virtual Task<bool> AllowedAsync(ActionExecutingContext context) => Task.FromResult(true);
 }
 
 // Ред в списъка с категории или институции

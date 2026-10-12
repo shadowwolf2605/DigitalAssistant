@@ -6,13 +6,14 @@ namespace DigitalAssistant.Data;
 public class AppDbContext : DbContext
 {
     // Версия на таблиците. Сменя се, когато се добавят нови таблици или колони.
-    public const int SchemaVersion = 9;
+    public const int SchemaVersion = 10;
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Institution> Institutions => Set<Institution>();
     public DbSet<Service> Services => Set<Service>();
+    public DbSet<Office> Offices => Set<Office>();
     public DbSet<Question> Questions => Set<Question>();
     public DbSet<GuideView> GuideViews => Set<GuideView>();
     public DbSet<InfoRequest> InfoRequests => Set<InfoRequest>();
@@ -50,6 +51,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Question>().HasOne(q => q.Service).WithMany()
             .HasForeignKey(q => q.ServiceId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<GuideView>().HasIndex(g => g.ShownAt);
+        // Една институция има най-много един офис в един град
+        modelBuilder.Entity<Office>().HasIndex(o => new { o.InstitutionId, o.City }).IsUnique();
+        modelBuilder.Entity<Office>().HasOne(o => o.Institution).WithMany()
+            .HasForeignKey(o => o.InstitutionId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Application>().HasIndex(a => a.City);
         modelBuilder.Entity<AdminUser>().HasOne(a => a.Institution).WithMany()
             .HasForeignKey(a => a.InstitutionId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<InfoRequest>().HasOne(r => r.ToInstitution).WithMany()

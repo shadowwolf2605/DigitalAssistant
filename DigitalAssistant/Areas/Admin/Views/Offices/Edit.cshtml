@@ -1,0 +1,13 @@
+@model Office
+@{
+    ViewData["Title"] = "Промяна на адрес";
+    ViewData["Help"] = "admin-uslugi";
+}
+<h1>Промяна на адрес</h1>
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post" class="card card-body shadow-sm" style="max-width: 640px" novalidate>
+    <partial name="_Fields" model="Model" />
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" type="submit">Запази</button>
+        <a class="btn btn-outline-secondary" asp-action="Index" asp-route-city="@Model.City">Отказ</a>
+    </div>
+</form>

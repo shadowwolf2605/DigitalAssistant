@@ -2,6 +2,7 @@ using DigitalAssistant.Data;
 using DigitalAssistant.Models;
 using DigitalAssistant.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
@@ -24,11 +25,22 @@ public class ApplicationsController : AdminController
         _sender = sender;
     }
 
-    public async Task<IActionResult> Index(ApplicationStatus? status, string? q, bool messages = false, bool overdue = false)
+    // Служител с избран град отваря само заявленията от този град
+    protected override async Task<bool> AllowedAsync(ActionExecutingContext context)
     {
-        var query = (messages ? UnreadMessages.ForStaff(_db) : _db.Applications)
+        if (AdminCity == null) return true;
+        int? id = context.ActionArguments.TryGetValue("id", out var value) && value is int x ? x
+            : context.ActionArguments.Values.OfType<StatusChangeModel>().FirstOrDefault()?.ApplicationId;
+        return id == null || await _db.Applications.AnyAsync(a => a.Id == id && a.City == AdminCity);
+    }
+
+    public async Task<IActionResult> Index(ApplicationStatus? status, string? q, string? city, bool messages = false, bool overdue = false)
+    {
+        var query = (messages ? UnreadMessages.ForStaff(_db, AdminCity) : InMyCity(_db.Applications))
             .Include(a => a.Citizen).Include(a => a.Service).Include(a => a.Events).AsQueryable();
         if (status != null) query = query.Where(a => a.Status == status);
+        // Служител за всички градове може да види заявленията само от един град
+        if (AdminCity == null && !string.IsNullOrEmpty(city)) query = query.Where(a => a.City == city);
         var list = await query.OrderByDescending(a => a.UpdatedAt).ToListAsync();
 
         // Търсене по номер, име на гражданин, услуга или ЕГН (без значение малки/главни букви)
@@ -45,11 +57,14 @@ public class ApplicationsController : AdminController
         if (overdue) list = list.Where(a => ApplicationStatuses.ExpectedDate(a) < DateTime.Today).ToList();
         ViewBag.Overdue = overdue;
         ViewBag.Messages = messages;
-        ViewBag.MessagesCount = await UnreadMessages.ForStaff(_db).CountAsync();
+        ViewBag.MessagesCount = await UnreadMessages.ForStaff(_db, AdminCity).CountAsync();
+        ViewBag.City = AdminCity == null ? city : null;
+        ViewBag.MyCity = AdminCity;
+        ViewBag.Cities = AdminCity == null ? await _db.Applications.Where(a => a.City != "").Select(a => a.City).Distinct().OrderBy(c => c).ToListAsync() : new List<string>();
 
         ViewBag.Status = status;
         ViewBag.Query = q;
-        ViewBag.Counts = await _db.Applications.GroupBy(a => a.Status)
+        ViewBag.Counts = await InMyCity(_db.Applications).GroupBy(a => a.Status)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count);
         return View(list);
@@ -96,7 +111,7 @@ public class ApplicationsController : AdminController
             }).ToListAsync();
         ViewBag.Institutions = await _db.Institutions.OrderBy(i => i.Name).ToListAsync();
         // Другите заявления на същия гражданин, подадени към други институции – документите в тях не се искат отново
-        ViewBag.OtherApplications = await _db.Applications.Where(a => a.CitizenId == app.CitizenId && a.Id != id)
+        ViewBag.OtherApplications = await InMyCity(_db.Applications).Where(a => a.CitizenId == app.CitizenId && a.Id != id)
             .OrderByDescending(a => a.CreatedAt)
             .Select(a => new Application
             {

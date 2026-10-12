@@ -6,8 +6,11 @@
     // Служителят на друга институция вижда само служебните справки до нея
     var institutionStaff = me?.InstitutionId != null;
     var newQuestions = signedIn && !institutionStaff ? Db.Questions.Count(q => q.FoundCount == 0 && !q.Reviewed) : 0;
-    var newApplications = signedIn && !institutionStaff ? Db.Applications.Count(a => a.Status == ApplicationStatus.Submitted) : 0;
-    var newMessages = signedIn && !institutionStaff ? DigitalAssistant.Services.UnreadMessages.ForStaff(Db).Count() : 0;
+    // Служител с избран град вижда само заявленията от него
+    var myCity = string.IsNullOrEmpty(me?.City) ? null : me.City;
+    var myApplications = myCity == null ? Db.Applications : Db.Applications.Where(a => a.City == myCity);
+    var newApplications = signedIn && !institutionStaff ? myApplications.Count(a => a.Status == ApplicationStatus.Submitted) : 0;
+    var newMessages = signedIn && !institutionStaff ? DigitalAssistant.Services.UnreadMessages.ForStaff(Db, myCity).Count() : 0;
     var newInfoRequests = me != null ? DigitalAssistant.Services.InfoRequests.ForStaff(Db, me).Count(r => r.AnsweredAt == null) : 0;
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
     var action = ViewContext.RouteData.Values["action"]?.ToString();
@@ -16,7 +19,8 @@
     // Инициали за кръгчето с потребителя
     var displayName = me?.FullName is { Length: > 0 } n ? n : User.Identity?.Name ?? "";
     var initials = string.Concat(displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpper(w[0])));
-    var role = me?.IsMain == true ? "Главен администратор" : institutionStaff ? "Служител · " + Db.Institutions.Where(i => i.Id == me!.InstitutionId).Select(i => i.Name).FirstOrDefault() : "Служител";
+    var role = (me?.IsMain == true ? "Главен администратор" : institutionStaff ? "Служител · " + Db.Institutions.Where(i => i.Id == me!.InstitutionId).Select(i => i.Name).FirstOrDefault() : "Служител")
+        + (myCity != null ? " · " + myCity : "");
     var roleText = role == displayName ? "потребител " + User.Identity?.Name : role + " · " + User.Identity?.Name;
 }
 <!DOCTYPE html>
@@ -48,7 +52,7 @@
         <aside class="login-aside" aria-hidden="true">
             <div class="brand">
                 <span class="logo-mark"><i class="bi bi-signpost-2-fill"></i></span>
-                <span>Дигитален помощник<small>Административен информационен център · Русе</small></span>
+                <span>Дигитален помощник<small>Административни услуги в цялата страна</small></span>
             </div>
             <div>
                 <h2>Работното място на служителите на центъра</h2>
@@ -105,6 +109,7 @@ else
                 <a class="nav-link @Active("Services")" asp-area="Admin" asp-controller="Services" asp-action="Index"><i class="bi bi-grid" aria-hidden="true"></i>Услуги</a>
                 <a class="nav-link @Active("Categories")" asp-area="Admin" asp-controller="Categories" asp-action="Index"><i class="bi bi-tags" aria-hidden="true"></i>Категории</a>
                 <a class="nav-link @Active("Institutions")" asp-area="Admin" asp-controller="Institutions" asp-action="Index"><i class="bi bi-bank" aria-hidden="true"></i>Институции</a>
+                <a class="nav-link @Active("Offices")" asp-area="Admin" asp-controller="Offices" asp-action="Index"><i class="bi bi-geo-alt" aria-hidden="true"></i>Адреси по градове</a>
                 <a class="nav-link @Active("Reports")" asp-area="Admin" asp-controller="Reports" asp-action="Index"><i class="bi bi-bar-chart" aria-hidden="true"></i>Справки</a>
                 @if (me?.IsMain == true)
                 {

@@ -57,6 +57,13 @@ public static class SeedData
         }).ToList();
         db.Services.AddRange(services);
 
+        // Примерните офиси са само в Русе. За другите градове ги добавя администраторът,
+        // а дотогава помощникът показва най-близкото място в картата.
+        db.Offices.AddRange(data.Offices.Select(o => new Office
+        {
+            Institution = institutions[o.Institution], City = o.City, Address = o.Address, Phone = o.Phone, WorkingHours = o.WorkingHours
+        }));
+
         // Главният администратор. При първия вход системата иска да смени началната парола.
         var admin = new AdminUser { Username = DefaultAdminUsername, FullName = "Главен администратор", IsMain = true, MustChangePassword = true };
         admin.PasswordHash = new PasswordHasher<AdminUser>().HashPassword(admin, string.IsNullOrWhiteSpace(adminPassword) ? DefaultAdminPassword : adminPassword);
@@ -95,6 +102,7 @@ public static class SeedData
                 DeliveryAddress = a.Address ?? "",
                 Fee = service.Fee,
                 DeadlineDays = service.DeadlineDays,
+                City = a.City ?? "Русе",
                 CreatedAt = created,
                 Files = a.Files.Select(f => new ApplicationFile
                 {
@@ -238,6 +246,7 @@ public static class SeedData
         public List<string> Categories { get; set; } = new();
         public List<string> Institutions { get; set; } = new();
         public List<SeedService> Services { get; set; } = new();
+        public List<SeedOffice> Offices { get; set; } = new();
         public List<string> SampleQuestions { get; set; } = new();
         public List<string> UnansweredQuestions { get; set; } = new();
         public SeedCitizen? DemoCitizen { get; set; }
@@ -253,8 +262,18 @@ public static class SeedData
         public string Password { get; set; } = "";
     }
 
+    private class SeedOffice
+    {
+        public string Institution { get; set; } = "";
+        public string City { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string WorkingHours { get; set; } = "";
+    }
+
     private class SeedApplication
     {
+        public string? City { get; set; }
         public string Service { get; set; } = "";
         public int DaysAgo { get; set; }
         public string Delivery { get; set; } = "";

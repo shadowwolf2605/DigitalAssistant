@@ -40,15 +40,20 @@ public class ApplicationsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Create(int serviceId, string? speed = null)
+    public async Task<IActionResult> Create(int serviceId, string? speed = null, string? city = null)
     {
         var service = await FindServiceAsync(serviceId);
         if (service == null) return NotFound();
         await FillCreateAsync(service);
+        // Градът идва от помощника или е този от последното заявление на гражданина
+        city = GuideCities.All.Any(c => c.Name == city) ? city
+            : await _db.Applications.Where(a => a.CitizenId == CitizenId && a.City != "")
+                .OrderByDescending(a => a.CreatedAt).Select(a => a.City).FirstOrDefaultAsync();
         return View(new ApplicationFormModel
         {
             ServiceId = serviceId, ResultDelivery = DeliveryOptions(service).First(),
-            Express = speed == GuideState.Express && HasExpress(service)
+            Express = speed == GuideState.Express && HasExpress(service),
+            City = city
         });
     }
 
@@ -71,6 +76,8 @@ public class ApplicationsController : Controller
 
         if (model.ResultDelivery != null && !DeliveryOptions(service).Contains(model.ResultDelivery))
             ModelState.AddModelError(nameof(model.ResultDelivery), "Изберете начин на получаване от списъка.");
+        if (model.City != null && !GuideCities.All.Any(c => c.Name == model.City))
+            ModelState.AddModelError(nameof(model.City), "Изберете град от списъка.");
         if (model.ResultDelivery == "по пощата" && string.IsNullOrWhiteSpace(model.DeliveryAddress))
             ModelState.AddModelError(nameof(model.DeliveryAddress), "Въведете адрес за получаване по пощата.");
         foreach (var error in ApplicationFileRules.Check(model.Files, required: true))
@@ -97,6 +104,7 @@ public class ApplicationsController : Controller
             Details = model.Details.Trim(),
             ResultDelivery = model.ResultDelivery!,
             DeliveryAddress = model.ResultDelivery == "по пощата" ? model.DeliveryAddress!.Trim() : "",
+            City = model.City!,
             Express = model.Express && HasExpress(service),
             Fee = model.Express && HasExpress(service) ? service.ExpressFee ?? service.Fee : service.Fee,
             DeadlineDays = model.Express && HasExpress(service) ? service.ExpressDeadlineDays ?? service.DeadlineDays : service.DeadlineDays,

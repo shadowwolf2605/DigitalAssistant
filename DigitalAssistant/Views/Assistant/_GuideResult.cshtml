@@ -19,7 +19,11 @@
     var city = Model.CityName;
     var steps = ServiceText.Steps(s.Steps);
     var signedIn = User.Identity?.IsAuthenticated == true;
-    var showPhone = !string.IsNullOrWhiteSpace(s.Phone) && (city == null || string.Equals(city, GuideCities.HomeCity, StringComparison.OrdinalIgnoreCase));
+    var office = Model.Office;
+    // В картата се търси точният адрес на офиса, а ако няма такъв – видът място в града
+    var mapPlace = office != null ? office.Address : s.PlaceSearch;
+    var mapCity = office != null ? office.City : st.City ?? city;
+    double? mapLat = office != null ? null : st.Lat, mapLng = office != null ? null : st.Lng;
     int n = 0;
 }
 <div class="guide-result">
@@ -136,7 +140,7 @@
                         <li>Ще получите номер на заявлението. При всяка промяна ще ви пишем на имейла, а състоянието се вижда в „Моите заявления“.</li>
                     </ol>
                     <div class="d-flex flex-wrap gap-2">
-                        <a class="btn btn-primary" asp-controller="Applications" asp-action="Create" asp-route-serviceId="@s.Id" asp-route-speed="@(express ? "express" : null)"><i class="bi bi-send me-1" aria-hidden="true"></i> Подай заявление</a>
+                        <a class="btn btn-primary" asp-controller="Applications" asp-action="Create" asp-route-serviceId="@s.Id" asp-route-speed="@(express ? "express" : null)" asp-route-city="@city"><i class="bi bi-send me-1" aria-hidden="true"></i> Подай заявление</a>
                         @if (!signedIn) { <a class="btn btn-light-glass" asp-controller="Account" asp-action="Register"><i class="bi bi-person-plus me-1" aria-hidden="true"></i> Регистрация</a> }
                     </div>
                 </div>
@@ -151,27 +155,38 @@
                     <h3>@(hasPlace ? "Отидете на място" : "Къде се заявява")</h3>
                     <div class="place-card">
                         <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
-                        <div>
-                            <div class="fw-semibold">@s.Address</div>
-                            @if (hasPlace && city != null)
+                        <div id="placeInfo">
+                            @if (office != null)
                             {
-                                <div>@(st.City != null ? GuideCities.In(st.City) : "най-близо до вас (около " + city + ")")</div>
+                                <div class="fw-semibold">@office.Address</div>
+                                <div>@GuideCities.In(office.City)</div>
+                                @if (!string.IsNullOrWhiteSpace(office.WorkingHours) || !string.IsNullOrWhiteSpace(s.WorkingHours)) { <div class="small text-muted mt-1"><i class="bi bi-clock me-1" aria-hidden="true"></i>Работно време: @(string.IsNullOrWhiteSpace(office.WorkingHours) ? s.WorkingHours : office.WorkingHours)</div> }
+                                @if (!string.IsNullOrWhiteSpace(office.Phone)) { <div class="small text-muted"><i class="bi bi-telephone me-1" aria-hidden="true"></i>Телефон: @office.Phone</div> }
+                                @if (s.Address.Length > 0 && s.Address != office.Address) { <div class="small text-muted"><i class="bi bi-signpost me-1" aria-hidden="true"></i>На място търсете: @s.Address</div> }
                             }
-                            @if (!string.IsNullOrWhiteSpace(s.WorkingHours)) { <div class="small text-muted mt-1"><i class="bi bi-clock me-1" aria-hidden="true"></i>@(hasPlace ? "Обикновено работи: " + s.WorkingHours + ". Проверете в картата, преди да тръгнете." : "Работи: " + s.WorkingHours + ".")</div> }
-                            @if (showPhone) { <div class="small text-muted"><i class="bi bi-telephone me-1" aria-hidden="true"></i>Телефон: @s.Phone</div> }
-                            else if (hasPlace && !string.IsNullOrWhiteSpace(s.Phone)) { <div class="small text-muted"><i class="bi bi-telephone me-1" aria-hidden="true"></i>Телефона на мястото ще видите в картата.</div> }
+                            else
+                            {
+                                <div class="fw-semibold">@s.Address</div>
+                                @if (hasPlace && city != null)
+                                {
+                                    <div>@(st.City != null ? GuideCities.In(st.City) : "най-близо до вас (около " + city + ")")</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(s.WorkingHours)) { <div class="small text-muted mt-1"><i class="bi bi-clock me-1" aria-hidden="true"></i>@(hasPlace ? "Обикновено работи: " + s.WorkingHours + ". Проверете в картата, преди да тръгнете." : "Работи: " + s.WorkingHours + ".")</div> }
+                                @if (hasPlace) { <div class="small text-muted"><i class="bi bi-telephone me-1" aria-hidden="true"></i>Точния адрес и телефона на мястото ще видите в картата.</div> }
+                            }
+                            @if (!string.IsNullOrWhiteSpace(s.Phone)) { <div class="small text-muted"><i class="bi bi-telephone-forward me-1" aria-hidden="true"></i>Телефон за справки за цялата страна: @s.Phone</div> }
                         </div>
                     </div>
                     @if (hasPlace)
                     {
                         <p class="mt-3 mb-2 no-print">Как да стигнете:</p>
                         <div class="route-btns">
-                            <a class="btn btn-primary" href="@GuideCities.MapSearch(s.PlaceSearch, st.City ?? city, st.Lat, st.Lng)" target="_blank" rel="noopener"><i class="bi bi-map me-1" aria-hidden="true"></i> Покажи на картата</a>
-                            <a class="btn btn-light-glass" href="@GuideCities.Route(s.PlaceSearch, st.City ?? city, st.Lat, st.Lng, "walking")" target="_blank" rel="noopener"><i class="bi bi-person-walking me-1" aria-hidden="true"></i> Пеша</a>
-                            <a class="btn btn-light-glass" href="@GuideCities.Route(s.PlaceSearch, st.City ?? city, st.Lat, st.Lng, "transit")" target="_blank" rel="noopener"><i class="bi bi-bus-front me-1" aria-hidden="true"></i> С градски транспорт</a>
-                            <a class="btn btn-light-glass" href="@GuideCities.Route(s.PlaceSearch, st.City ?? city, st.Lat, st.Lng, "driving")" target="_blank" rel="noopener"><i class="bi bi-car-front me-1" aria-hidden="true"></i> С кола</a>
+                            <a class="btn btn-primary" href="@GuideCities.MapSearch(mapPlace, mapCity, mapLat, mapLng)" target="_blank" rel="noopener"><i class="bi bi-map me-1" aria-hidden="true"></i> Покажи на картата</a>
+                            <a class="btn btn-light-glass" href="@GuideCities.Route(mapPlace, mapCity, st.Lat, st.Lng, "walking")" target="_blank" rel="noopener"><i class="bi bi-person-walking me-1" aria-hidden="true"></i> Пеша</a>
+                            <a class="btn btn-light-glass" href="@GuideCities.Route(mapPlace, mapCity, st.Lat, st.Lng, "transit")" target="_blank" rel="noopener"><i class="bi bi-bus-front me-1" aria-hidden="true"></i> С градски транспорт</a>
+                            <a class="btn btn-light-glass" href="@GuideCities.Route(mapPlace, mapCity, st.Lat, st.Lng, "driving")" target="_blank" rel="noopener"><i class="bi bi-car-front me-1" aria-hidden="true"></i> С кола</a>
                         </div>
-                        <p class="small text-muted mt-2 mb-0 no-print">Картата се отваря в нов прозорец@(st.Lat != null ? " и показва най-близките места около вас" : "").</p>
+                        <p class="small text-muted mt-2 mb-0 no-print">Картата се отваря в нов прозорец@(office == null && st.Lat != null ? " и показва най-близките места около вас" : "").</p>
                     }
                 </div>
             </li>
