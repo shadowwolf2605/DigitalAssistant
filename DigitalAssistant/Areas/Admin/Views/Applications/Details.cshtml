@@ -38,6 +38,16 @@
         <div>
             <div class="staff-head">Ново съобщение от гражданина <span class="when ms-1">@m.At.ToString("dd.MM.yyyy HH:mm")</span></div>
             <p class="mb-0 fs-5">@m.Comment</p>
+            @{ var messageFiles = app.Files.Where(f => f.EventId == m.Id).ToList(); }
+            @if (messageFiles.Count > 0)
+            {
+                <ul class="msg-files mt-2">
+                    @foreach (var f in messageFiles)
+                    {
+                        <li><a asp-action="File" asp-route-id="@app.Id" asp-route-fileId="@f.Id"><i class="bi @ApplicationFileRules.Icon(f.FileName)" aria-hidden="true"></i>@f.FileName <span class="size">@ApplicationFileRules.Size(f.Size)</span></a></li>
+                    }
+                </ul>
+            }
         </div>
     </div>
     }

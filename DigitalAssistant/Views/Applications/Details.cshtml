@@ -106,10 +106,13 @@
                 </ul>
                 @if (open)
                 {
-                    <form method="post" asp-action="Message" asp-route-id="@Model.Id" class="message-form" novalidate>
+                    <form method="post" enctype="multipart/form-data" asp-action="Message" asp-route-id="@Model.Id" class="message-form" novalidate>
                         <label for="Text" class="form-label fw-semibold">Напишете съобщение до служителя</label>
                         <textarea id="Text" name="Text" class="form-control" rows="3" maxlength="1000" required
                                   placeholder="Например: Може ли да получа документа в петък?">@message.Text</textarea>
+                        <label for="MessageFiles" class="form-label small mt-2 mb-1"><i class="bi bi-paperclip me-1" aria-hidden="true"></i>Прикачете файлове (по желание)</label>
+                        <input type="file" id="MessageFiles" name="files" class="form-control form-control-sm" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" aria-describedby="messageFilesHelp" />
+                        <div id="messageFilesHelp" class="form-text">до @ApplicationFileRules.MaxFiles файла · .pdf, .jpg, .png, .doc, .docx · до 5 MB всеки</div>
                         <button type="submit" class="btn btn-primary mt-2"><i class="bi bi-send me-1" aria-hidden="true"></i> Изпрати</button>
                     </form>
                 }

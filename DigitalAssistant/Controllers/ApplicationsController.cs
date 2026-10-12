@@ -138,10 +138,11 @@ public class ApplicationsController : Controller
         return View(app);
     }
 
-    // Съобщение от гражданина до служителя
+    // Съобщение от гражданина до служителя, по желание с прикачени файлове
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Message(int id, CitizenMessageModel model)
+    [RequestSizeLimit(30 * 1024 * 1024)]
+    public async Task<IActionResult> Message(int id, CitizenMessageModel model, List<IFormFile>? files)
     {
         var app = await _db.Applications.Include(a => a.Citizen)
             .FirstOrDefaultAsync(a => a.Id == id && a.CitizenId == CitizenId);
@@ -157,13 +158,34 @@ public class ApplicationsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        _db.ApplicationEvents.Add(new ApplicationEvent
+        files ??= new List<IFormFile>();
+        var errors = ApplicationFileRules.Check(files, required: false);
+        if (errors.Count > 0)
+        {
+            TempData["Error"] = "Съобщението не е изпратено. " + string.Join(" ", errors);
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        var newFiles = await ApplicationFileRules.ReadAsync(files);
+
+        // Ако служителят е поискал документи и гражданинът ги изпраща със съобщението, заявлението отново отива за обработка
+        if (newFiles.Count > 0 && app.Status == ApplicationStatus.NeedsDocuments)
+            app.Status = ApplicationStatus.Submitted;
+        var message = new ApplicationEvent
         {
             ApplicationId = app.Id, Status = app.Status, Comment = model.Text.Trim(), Author = app.Citizen!.FullName, ByCitizen = true
-        });
+        };
+        _db.ApplicationEvents.Add(message);
         app.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
-        TempData["Success"] = "Съобщението е изпратено до служителя.";
+        if (newFiles.Count > 0)
+        {
+            // Файловете се показват до съобщението и в „Документи“
+            foreach (var f in newFiles) { f.ApplicationId = app.Id; f.EventId = message.Id; _db.ApplicationFiles.Add(f); }
+            await _db.SaveChangesAsync();
+        }
+        TempData["Success"] = newFiles.Count > 0
+            ? $"Съобщението и {(newFiles.Count == 1 ? "файлът" : $"{newFiles.Count} файла")} са изпратени до служителя."
+            : "Съобщението е изпратено до служителя.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -202,14 +224,17 @@ public class ApplicationsController : Controller
         }
 
         var newFiles = await ApplicationFileRules.ReadAsync(files);
-        foreach (var f in newFiles) { f.ApplicationId = app.Id; _db.ApplicationFiles.Add(f); }
         app.Status = ApplicationStatus.Submitted;
         app.UpdatedAt = DateTime.Now;
-        _db.ApplicationEvents.Add(new ApplicationEvent
+        var uploaded = new ApplicationEvent
         {
             ApplicationId = app.Id, Status = ApplicationStatus.Submitted, Author = app.Citizen!.FullName, ByCitizen = true,
             Comment = $"Качени са допълнителни документи ({newFiles.Count})."
-        });
+        };
+        _db.ApplicationEvents.Add(uploaded);
+        await _db.SaveChangesAsync();
+        // Файловете се показват и до съобщението, за да вижда служителят кои са новите
+        foreach (var f in newFiles) { f.ApplicationId = app.Id; f.EventId = uploaded.Id; _db.ApplicationFiles.Add(f); }
         await _db.SaveChangesAsync();
         TempData["Success"] = "Документите са качени. Заявлението отново е изпратено за обработка.";
         return RedirectToAction(nameof(Details), new { id });
