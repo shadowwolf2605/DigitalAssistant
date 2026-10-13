@@ -1109,3 +1109,6 @@ main:focus { outline: none; }
     .site-nav.signed-in .nav-link > .bi:not(.theme-icon) { display: none; }
     .site-nav.signed-in .navbar-brand small { display: none; }
 }
+
+/* Бутон × за махане на избран файл */
+.file-list li .file-remove { margin-left: .2rem; flex: none; }
